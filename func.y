@@ -5,13 +5,15 @@
 
 extern int line_counter; // input program line counter
 int flag=0; // check for block entries
-int global_index=0, func_index=0, symbol_index=0, par_index=0; //table index
+int global_index=0, func_index=0, symbol_index = 0, par_index=0; //table index
 char data_type[20]; // c data type
 char access[20]; // access specifier (static,extern,typedef,etc.)
-
+int in_func_flag=0,in_func_stmt_flag=0;
 global_symbol gsym_tab[50]; // Global variable Entries
 func_def func_tab[50]; // user defined function entries
-
+symbol_table sym_tab[50];
+parameter par[50];
+int global_func_index=0,par_func=0;
 %}
 
 %union
@@ -26,7 +28,7 @@ func_def func_tab[50]; // user defined function entries
 
 %%
 
-start: 	stmnt start |
+start: 	stmnt start {printf("\n corrrect program with multiple statements");}|
 	stmnt {printf("\n Correct program");}
 	;
 
@@ -38,7 +40,6 @@ stmnt: 	func_stmnt |
 					else 
 					{
 						printf("\n Correct Global Declaration");
-						global_index++;
 					}
 				} 
 	//preprocess_stmnt
@@ -48,11 +49,11 @@ stmnt: 	func_stmnt |
 //			;
 
 // pattern match for variable declaration
-declarative_stmnt:	type var_list 
+declarative_stmnt:	type var_list {printf("\ncorrect variable declaration");}
 			;
 
 // pattern match for one or more varibles
-var_list:	variable COMMA {global_index++;} var_list|
+var_list:	variable COMMA var_list|
 		variable
 		;
 
@@ -66,14 +67,16 @@ variable:	VAR {
 				strcpy(gsym_tab[global_index].access,access);
 				strcpy(gsym_tab[global_index].type,data_type);
 				printf("\n Access of %s is %s \n line number: %d \nData type:%s",gsym_tab[global_index].sym_name,gsym_tab[global_index].access,gsym_tab[global_index].line_number,gsym_tab[global_index].type);
+				global_index++;
 			}
 			else // Local variable entry
 			{
-				func_tab[func_index-1].sym_tab[symbol_index].index = symbol_index;
-				strcpy(func_tab[func_index-1].sym_tab[symbol_index].sym_name,$1);
-				strcpy(func_tab[func_index-1].sym_tab[symbol_index].type,data_type);
-				func_tab[func_index-1].sym_tab[symbol_index].line_number = line_counter;
-				printf("\n\n\t Local variables\n index: %d \t type: %s \t name: %s \t line_number: %d",func_tab[func_index-1].sym_tab[symbol_index].index,func_tab[func_index-1].sym_tab[symbol_index].type,func_tab[func_index-1].sym_tab[symbol_index].sym_name,func_tab[func_index-1].sym_tab[symbol_index].line_number);
+				
+				sym_tab[symbol_index].func_index = func_index-1;
+				strcpy(sym_tab[symbol_index].sym_name,$1);
+				strcpy(sym_tab[symbol_index].type,data_type);
+				sym_tab[symbol_index].line_number = line_counter;
+				
 				symbol_index++; 
 			}
 		    }|
@@ -86,40 +89,40 @@ variable:	VAR {
 				strcpy(gsym_tab[global_index].access,access);
 				strcpy(gsym_tab[global_index].type,data_type);
 				printf("\n Access of %s is %s \n line number: %d \n data type:%s",gsym_tab[global_index].sym_name,gsym_tab[global_index].access,gsym_tab[global_index].line_number,gsym_tab[global_index].type);
+				global_index++;
 			}
 			else // Local variable entry with default value
 			{
-				func_tab[func_index-1].sym_tab[symbol_index].index = symbol_index;
-				strcpy(func_tab[func_index-1].sym_tab[symbol_index].sym_name,$1);
-				strcpy(func_tab[func_index-1].sym_tab[symbol_index].type,data_type);
-				func_tab[func_index-1].sym_tab[symbol_index].line_number = line_counter;
-				printf("\n\n\t Local variables\n index: %d \t type: %s \t name: %s \t line_number: %d",func_tab[func_index-1].sym_tab[symbol_index].index,func_tab[func_index-1].sym_tab[symbol_index].type,func_tab[func_index-1].sym_tab[symbol_index].sym_name,func_tab[func_index-1].sym_tab[symbol_index].line_number);
+				sym_tab[symbol_index].func_index = func_index-1;
+				
+				strcpy(sym_tab[symbol_index].sym_name,$1);
+				strcpy(sym_tab[symbol_index].type,data_type);
+				sym_tab[symbol_index].line_number = line_counter;
 				symbol_index++;
 			}
 		    } EQUAL_TO operand;
 
 // pattern match for function statement
 func_stmnt: func_prototype {
+				
 				// Make entry function into func_table
 				printf("\n Correct Function Declaration");
 				
-				func_tab[func_index].index=func_index;
-				func_tab[func_index].line_number = line_counter;
-				func_tab[func_index].no_of_parameter = par_index + 1;
-				func_tab[func_index].no_of_symbols = symbol_index + 1;
-				printf("\n\n\tFunction Table\n \tIndex \t line_number \t name \t return_type \t no_of_par \t No_of_sym");
-				printf("\n\t %d \t %d \t %s \t %s \t %d \t %d",func_tab[func_index].index,func_tab[func_index].line_number,func_tab[func_index].func_name,func_tab[func_index].return_type,func_tab[func_index].no_of_parameter,func_tab[func_index].no_of_symbols);				
-				func_index++;
-				par_index = 0;
-				symbol_index = 0;
+				func_tab[global_func_index].index=global_func_index;
+				func_tab[global_func_index].line_number = line_counter;
+				func_tab[global_func_index].no_of_parameter = par_index + 1;
+				
+				global_func_index++;
+				printf("\n********** global_func_index %d",global_func_index);
+				
 			    } block 
 	;
 
 // pattern match for function prototype
 func_prototype: type VAR {
 				// pattern match return type and function name
-				strcpy(func_tab[func_index].return_type,data_type);
-				strcpy(func_tab[func_index].func_name,$2);
+				strcpy(func_tab[global_func_index].return_type,data_type);
+				strcpy(func_tab[global_func_index].func_name,$2);
 			} OPEN_BR par CLOSE_BR {printf("\n Correct Function prototype");}
 		;
 
@@ -141,7 +144,7 @@ type_def:TYPE type_def |
 	 TYPE pointer |
 	 TYPE array |
 	 TYPE pointer array |
-	 TYPE {strcat(data_type,$1);}
+	 TYPE {strcat(data_type,$1);} 
 	 ;
 
 // pattern match for pointer
@@ -165,15 +168,35 @@ par: 	parameter COMMA {par_index++;} par|
 
 // pattern match for parameter entry
 parameter:	{strcpy(data_type,"");} type_def VAR {
-							func_tab[func_index].par[par_index].index=par_index;
-							strcpy(func_tab[func_index].par[par_index].type,data_type);
-							strcpy(func_tab[func_index].par[par_index].par_name,$3);
-							printf("\n\n\t Function Parameter\n index: %d \t type: %s \t name: %s",func_tab[func_index].par[par_index].index,func_tab[func_index].par[par_index].type,func_tab[func_index].par[par_index].par_name);
+							par[par_index].func_index=global_func_index;
+							strcpy(par[par_index].type,data_type);
+							strcpy(par[par_index].par_name,$3);
+							printf("\n\t\t %s \t %s \t %d",par[par_index].par_name,par[par_index].type,par[par_index].func_index);	
 						     }
 		;
 
 // pattern match for block entry
-block:	OPEN_CBR {flag=1;} code CLOSE_CBR {flag=0;}|
+block:	OPEN_CBR
+		{
+			if(flag)
+			{
+				in_func_flag=1;
+				par_func = func_index;
+				
+			}	
+			func_index = global_func_index;
+			flag=1;
+		} 
+	code CLOSE_CBR 
+		{	
+			if(!in_func_flag)
+				flag=0;
+			else
+			{
+				in_func_flag=0;		
+				func_index = par_func;
+			}
+		}|
 	OPEN_CBR CLOSE_CBR
 	;
 
@@ -182,7 +205,7 @@ code:	any code|
 	any
 	;
 
-any: 	stmnt|
+any: 	stmnt |
 	ANYTHING |
 	operand |
 	block |
@@ -199,10 +222,50 @@ any: 	stmnt|
 
 extern FILE *yyin;
 
+void display_global_variables()
+{
+	int i;
+	printf("\n\n\t\t Symbol Table contains Global entries\n");
+	printf("\n\t INDEX \t ACCESS \t NAME \t TYPE \t LINE");
+	for(i = 0; i < global_index; i++)
+		printf("\n\t %d \t %s \t %s \t %s \t %d",gsym_tab[i].index,gsym_tab[i].access,gsym_tab[i].sym_name,gsym_tab[i].type,gsym_tab[i].line_number);
+
+}
+
+void display_function()
+{
+	int i;
+	printf("\n\n\t\t Function Table contains User defined functions\n");
+	printf("\n\t INDEX \t LINE \t NAME \t RET_TYPE \t PARMTRS \t SYMBOLS");
+	for(i = 0; i < global_func_index; i++)
+		printf("\n\t %d \t %d \t %s \t %s \t\t %d \t\t %d",func_tab[i].index,func_tab[i].line_number,func_tab[i].func_name,func_tab[i].return_type,func_tab[i].no_of_parameter,func_tab[i].no_of_symbols);
+}
+
+display_local_variables()
+{
+	int j;
+	printf("\n\n\t\t Symbol Table contains Local Variables \n");
+	printf("\n\t INDEX \t NAME \t TYPE \t FUNC_INDEX \t LINE");
+	for(j = 0;j < symbol_index; j++)
+		printf("\n\t %d \t %s \t %s \t %d \t%d",j,sym_tab[j].sym_name,sym_tab[j].type,sym_tab[j].func_index,sym_tab[j].line_number);
+}
+
+void display_func_paramtr()
+{
+	int i;
+	printf("\n\n\t\t Symbol Table contains Parameters of function \n");
+	printf("\n\t INDEX \t NAME \t TYPE \t FUNC_INDEX");
+	for(i = 0;i < par_index; i++)
+		printf("\n\t %d \t %s \t %s \t %d",i,par[i].par_name,par[i].type,par[i].func_index);	
+}
 
 int main()
 {
 	yyin=fopen("sample.c","r");
 	yyparse();
+	display_global_variables();
+	display_function();
+	display_local_variables();
+	display_func_paramtr();
 	return 0;
 }
