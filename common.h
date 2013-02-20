@@ -17,15 +17,16 @@ typedef struct global_symbol
 
 typedef struct parameter
 {
-    int index;
+    int func_index;
     char type[SIZE_TYPE];
     char par_name[SIZE_VAR];
 }parameter;
 
 typedef struct symbol_table
 {
-    int index;
+    int func_index;	
     char sym_name[SIZE_VAR];
+    char access[SIZE_VAR];
     char type[SIZE_TYPE];
     int line_number;
 }symbol_table;
@@ -37,7 +38,6 @@ typedef struct func_def
     char func_name[SIZE_FUNC];
     char return_type[SIZE_TYPE];
     int no_of_parameter;
-    parameter par[NUM_PAR];
     int no_of_symbols;
-    symbol_table sym_tab[SIZE_TABLE];
+    
 }func_def;
