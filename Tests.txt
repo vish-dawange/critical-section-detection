@@ -4,8 +4,8 @@
 2. Handle global variables of userdefined DT	-	Not Done
 3. Handle User Defined function entries		-	Done
 4. Handle local varibales			- 	Done
-5. Handle pointer variables			-	Not Done
-6. Handle Thread entries			-	Not Done
+5. Handle pointer variables			-	Not Done*
+6. Handle Thread entries			-	Not Done*
 7. Handle function within function		-	Done
 8. Handle nested data types(like long int,long long) -	Done
 9. Ignore Preprocessors				-	Done
@@ -14,4 +14,5 @@
 12. handle empty Udefined function	 	-	Done 
 13. Access specifier for local variables	-	Done
 14. Handle UDefined function without parameters	-	Done
+15. Handle semaphores and pthread libraries	-  	Not Done*
 
