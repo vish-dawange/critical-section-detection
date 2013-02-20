@@ -1,0 +1,7 @@
+/***** Test cases for handling different critical section issues  *****/
+
+1. Parent and child both modify with no locks(This can be done in multiple ways.)
+2. Situation of two race cases.
+3. Delete the memory that has held the lock.
+4. Check that an error is reported for various kinds of bogus pthread_mutex_unlock calls.
+5. Handling of functions which includes lock without unlock. 
