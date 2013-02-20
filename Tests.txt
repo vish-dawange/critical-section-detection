@@ -7,10 +7,11 @@
 5. Handle pointer variables			-	Not Done
 6. Handle Thread entries			-	Not Done
 7. Handle function within function		-	Done
-8. Handle nested data types(like long int,long long) -	Not Done
-9. Ignore Preprocessors				-	Not Done
-10. Ignore comments				-	Not Done
+8. Handle nested data types(like long int,long long) -	Done
+9. Ignore Preprocessors				-	Done
+10. Ignore comments				-	Done
 11. Ignore structure definition			-	Not Done
-12. Handle expression assignment to bariables	-	Not Done 
-13. Access specifier for local variables	-	Not Done
+12. handle empty Udefined function	 	-	Done 
+13. Access specifier for local variables	-	Done
+14. Handle UDefined function without parameters	-	Done
 

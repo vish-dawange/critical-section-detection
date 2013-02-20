@@ -5,11 +5,11 @@
 int line_counter = 0;
 
 %}
-
+%x COMMENT SINGLE PREPROCESSOR
 %%
 
 int|float|char|double|long|short|signed|void|unsigned {strcpy(yylval.arg,yytext); return TYPE;}
-extern|static|far|near|typedef  {strcpy(yylval.arg,yytext); return ACCESS;}
+extern|static|typedef  {strcpy(yylval.arg,yytext); return ACCESS;}
 [0-9]+?[\.]?[0-9]*       {strcpy(yylval.arg,yytext); return NUM;}
 [a-zA-Z][a-zA-Z0-9]*     {strcpy(yylval.arg,yytext); return VAR;}
 "(" return OPEN_BR;
@@ -22,8 +22,22 @@ extern|static|far|near|typedef  {strcpy(yylval.arg,yytext); return ACCESS;}
 "*" return STAR;
 ";" return SEMI;
 "=" return EQUAL_TO;
+"/*"           	{BEGIN COMMENT;}
+"//"           	{BEGIN SINGLE;}
+"#"		{BEGIN PREPROCESSOR;}
+<COMMENT>[.|\n]*       {
+                         printf("\n%s",yytext);         
+                       }
+<COMMENT>"*/"          {        BEGIN 0;
+                       }  
+<SINGLE>.*             {
+                         printf("\n%s",yytext);         
+                       }
+<SINGLE>\n             {BEGIN 0;}
 
+<PREPROCESSOR>\n	{BEGIN 0;}
 [ \t]  ;
+
 \n  { line_counter++; }
 . { yylval.any_arg=yytext[0];printf("-%c-",yytext[0]); return ANYTHING;}
 

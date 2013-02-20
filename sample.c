@@ -1,7 +1,16 @@
+// abcd
+/* ajsd
+kdshf
+*/
+#include<stdio.h>
 static unsigned int x=10.5,p=10;
-int main(int abd,unsigned char ti)
+extern int djas[][]=12;
+int asdgj()
+{}
+
+int [] main(int abd,unsigned char ti)
 {
- int v;
+ extern long long int * v;
 if(i-max)
   {
      printf("\n Inside");
@@ -22,7 +31,7 @@ if(i-max)
 	int oo,tt;
 	int sub(int r)
 	{
-		int s;
+		static int s;
 	}
 
 
