@@ -11,7 +11,7 @@ int line_counter = 0;
 int|float|char|double|long|short|signed|void|unsigned {strcpy(yylval.arg,yytext); return TYPE;}
 extern|static|typedef  {strcpy(yylval.arg,yytext); return ACCESS;}
 [0-9]+?[\.]?[0-9]*       {strcpy(yylval.arg,yytext); return NUM;}
-[a-zA-Z][a-zA-Z0-9]*     {strcpy(yylval.arg,yytext); return VAR;}
+[a-zA-Z_][a-zA-Z0-9_]*     {strcpy(yylval.arg,yytext); return VAR;}
 "(" return OPEN_BR;
 ")" return CLOSE_BR;
 "," return COMMA;
