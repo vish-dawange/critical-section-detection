@@ -5,7 +5,7 @@
 3. Handle User Defined function entries		-	Done
 4. Handle local varibales			- 	Done
 5. Handle pointer variables			-	Not Done*
-6. Handle Thread entries			-	Not Done*
+6. Handle Thread entries			-	Done
 7. Handle function within function		-	Done
 8. Handle nested data types(like long int,long long) -	Done
 9. Ignore Preprocessors				-	Done
