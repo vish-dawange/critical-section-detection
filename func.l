@@ -10,6 +10,7 @@ int line_counter = 0;
 
 int|float|char|double|long|short|signed|void|unsigned {strcpy(yylval.arg,yytext); return TYPE;}
 extern|static|typedef  {strcpy(yylval.arg,yytext); return ACCESS;}
+pthread_create  return PTHREAD_CREATE;
 [0-9]+?[\.]?[0-9]*       {strcpy(yylval.arg,yytext); return NUM;}
 [a-zA-Z_][a-zA-Z0-9_]*     {strcpy(yylval.arg,yytext); return VAR;}
 "(" return OPEN_BR;
@@ -22,20 +23,22 @@ extern|static|typedef  {strcpy(yylval.arg,yytext); return ACCESS;}
 "*" return STAR;
 ";" return SEMI;
 "=" return EQUAL_TO;
-"/*"           	{BEGIN COMMENT;}
-"//"           	{BEGIN SINGLE;}
+"&" return ADDRESS;
+"/*"            {BEGIN COMMENT;}
+"//"            {BEGIN SINGLE;}
 "#"		{BEGIN PREPROCESSOR;}
-<COMMENT>[.|\n]*       {
-                         printf("\n%s",yytext);         
+<COMMENT>[.]*       {
+                         printf("\n%s",yytext);
                        }
+<COMMENT>[\n]          { line_counter++;}
 <COMMENT>"*/"          {        BEGIN 0;
-                       }  
-<SINGLE>.*             {
-                         printf("\n%s",yytext);         
                        }
-<SINGLE>\n             {BEGIN 0;}
+<SINGLE>.*             {
+                         printf("\n%s",yytext);
+                       }
+<SINGLE>\n             {BEGIN 0; line_counter++;}
 
-<PREPROCESSOR>\n	{BEGIN 0;}
+<PREPROCESSOR>\n	{BEGIN 0; line_counter++;}
 [ \t]  ;
 
 \n  { line_counter++; }
@@ -45,10 +48,10 @@ extern|static|typedef  {strcpy(yylval.arg,yytext); return ACCESS;}
 
 int yywrap()
 {
-	return 1;
+        return 1;
 }
 
 int yyerror()
 {
-	printf("\nError...");
+        printf("\nError...");
 }
