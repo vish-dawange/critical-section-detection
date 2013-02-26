@@ -24,7 +24,7 @@ typedef struct parameter
 
 typedef struct symbol_table
 {
-    int func_index;	
+    int func_index;
     char sym_name[SIZE_VAR];
     char access[SIZE_VAR];
     char type[SIZE_TYPE];
@@ -39,5 +39,22 @@ typedef struct func_def
     char return_type[SIZE_TYPE];
     int no_of_parameter;
     int no_of_symbols;
-    
+
 }func_def;
+
+typedef struct thread_info
+{
+    int index;
+    char thread_obj[SIZE_TYPE];
+    char func_name[SIZE_TYPE];
+    char thread_attr[SIZE_TYPE];
+    char func_arg[SIZE_TYPE];
+    char parent_thread[SIZE_TYPE];
+}thread_info;
+
+
+typedef struct function_def_log
+{
+    int index,function_index;
+    char variable[SIZE_TYPE],type[SIZE_TYPE];
+}function_def_log;
