@@ -5,14 +5,15 @@
 
 extern int line_counter; // input program line counter
 int flag = 0; // check for block entries
-int global_index = 0, func_index = 0, symbol_index = 0, par_index = 0, global_func_index = 0, par_func = 0; //table index
+int global_index = 0, func_index = 0, symbol_index = 0, par_index = 0, global_func_index = 0, par_func = 0, thread_index = 0; //table index
 char data_type[20]; // c data type
 char access[20]; // access specifier (static,extern,typedef,etc.)
-int in_func_flag = 0,in_func_stmt_flag = 0;
+int in_func_flag = 0,in_func_stmt_flag = 0, ignore_flag = 0;
 global_symbol gsym_tab[50]; // Global variable Entries
 func_def func_tab[50]; // user defined function entries
 symbol_table sym_tab[50]; // Symbol table Object
 parameter par_tab[50]; // parameter table object
+thread_info thread_tab[50]; // thread table object
 
 void get_symbol(char []); // make entries into global and local variables
 
@@ -20,15 +21,15 @@ void get_symbol(char []); // make entries into global and local variables
 
 %union
 {
- char arg[10];
+ char arg[20];
  char any_arg;
 }
 
 //define tokens which will help to match patterns
-%token MAIN OPEN_BR CLOSE_BR OPEN_CBR CLOSE_CBR OPEN_SBR CLOSE_SBR STAR COMMA SEMI EQUAL_TO
+%token MAIN OPEN_BR CLOSE_BR OPEN_CBR CLOSE_CBR OPEN_SBR CLOSE_SBR STAR COMMA SEMI EQUAL_TO PTHREAD_CREATE ADDRESS
 %token <arg>  VAR NUM ACCESS TYPE
 %token <any_arg> ANYTHING
-
+%type <arg> par_val1 par_val2 thread_creation
 %%
 
 // Start of Grammar with recursive statement
@@ -40,13 +41,34 @@ start:	stmnt start {printf("\n corrrect program with multiple statements");}|
 stmnt:	func_stmnt |
 	declarative_stmnt SEMI	{
 					// Check for local/global variable
-					if(flag==1) printf("\n Local Variable");
+					if (flag == 1) printf("\n Local Variable");
 					else
 					{
 						printf("\n Correct Global Declaration");
 					}
-				}
+				} //|
+	//ignore_code //|
+	//func_declare_stmnt
 	;
+
+func_declare_stmnt:	type VAR bracket SEMI {printf("\n Function declaration correct");}
+		;
+
+ignore_code:	ANYTHING |
+		operand |
+		{ignore_flag = 1;} block |
+		OPEN_BR |
+		CLOSE_BR|
+		OPEN_SBR|
+		CLOSE_SBR|
+		STAR |
+		COMMA |
+		SEMI |
+		EQUAL_TO
+		TYPE |
+		ACCESS|
+		type VAR bracket SEMI
+		;
 
 
 
@@ -72,7 +94,7 @@ func_stmnt: func_prototype {
 				// Make entry function into func_table
 				printf("\n Correct Function Declaration");
 
-				func_tab[global_func_index].index=global_func_index;
+				func_tab[global_func_index].index = global_func_index;
 				func_tab[global_func_index].line_number = line_counter;
 				func_tab[global_func_index].no_of_parameter = par_index + 1;
 
@@ -80,6 +102,7 @@ func_stmnt: func_prototype {
 
 			    } block
 	;
+
 
 // pattern match for function prototype
 func_prototype: type VAR {
@@ -140,33 +163,34 @@ par:	parameter COMMA par|
 
 // pattern match for parameter entry
 parameter:	{strcpy(data_type,"");} type_def VAR {
-							par_tab[par_index].func_index=global_func_index;
+							par_tab[par_index].func_index = global_func_index;
 							strcpy(par_tab[par_index].type,data_type);
 							strcpy(par_tab[par_index].par_name,$3);
 							printf("\n\t\t %s \t %s \t %d",par_tab[par_index].par_name,par_tab[par_index].type,par_tab[par_index].func_index);
 							par_index++;
 						     }
+		//| type_def
 		;
 
 // pattern match for block entry
 block:	OPEN_CBR
 		{
-			if(flag)
+			if (flag)
 			{
-				in_func_flag=1;
+				in_func_flag = 1;
 				par_func = func_index;
 
 			}
 			func_index = global_func_index;
-			flag=1;
+			flag = 1;
 		}
 	code CLOSE_CBR
 		{
-			if(!in_func_flag)
-				flag=0;
+			if (!in_func_flag)
+				flag = 0;
 			else
 			{
-				in_func_flag=0;
+				in_func_flag = 0;
 				func_index = par_func;
 			}
 		}|
@@ -180,7 +204,10 @@ code:	any code|
 
 any:	stmnt |
 	ANYTHING |
-	operand |
+	NUM |
+	VAR {
+		
+	    }|
 	block |
 	OPEN_BR |
 	CLOSE_BR|
@@ -189,9 +216,31 @@ any:	stmnt |
 	STAR |
 	COMMA |
 	SEMI |
-	EQUAL_TO
+	EQUAL_TO|
+	thread_creation|
+	PTHREAD_CREATE |
+	ADDRESS
 	;
 
+// pattern match for pthread_create
+thread_creation : PTHREAD_CREATE OPEN_BR ADDRESS VAR COMMA par_val1 COMMA VAR { printf("\n thread object %s pointing to function %s",$4,$8);
+										thread_tab[thread_index].index = thread_index;
+										strcpy(thread_tab[thread_index].thread_obj, $4);
+										strcpy(thread_tab[thread_index].func_name,$8);
+										strcpy(thread_tab[thread_index].parent_thread,func_tab[func_index-1].func_name);
+										
+									} COMMA  par_val2 CLOSE_BR  {printf("\ncorrect thread...."); thread_index++;}
+		;
+
+par_val1 : ADDRESS VAR {printf("\n Thread attribute: %s",$2);
+			strcpy(thread_tab[thread_index].thread_attr,$2);
+			} | VAR { strcpy(thread_tab[thread_index].thread_attr,$1); }
+	;
+
+par_val2:  VAR {printf("\n Thread function parameter : %s",$1); strcpy(thread_tab[thread_index].func_arg,$1);}
+	|
+	OPEN_BR type CLOSE_BR ADDRESS VAR {printf("\n Thread function parameter : %s",$5); strcpy(thread_tab[thread_index].func_arg,$5);}
+	;
 
 %%
 
@@ -227,47 +276,72 @@ void get_symbol(char var[10])
 void display_global_variables()
 {
 	int i;
-	printf("\n\n\t\t Symbol Table contains Global entries\n");
-	printf("\n\t INDEX \t ACCESS \t NAME \t TYPE \t\t\t LINE");
-	for(i = 0; i < global_index; i++)
-		printf("\n\t %d \t %s \t %s \t %s \t\t %d",gsym_tab[i].index,gsym_tab[i].access,gsym_tab[i].sym_name,gsym_tab[i].type,gsym_tab[i].line_number);
+	if (global_index != 0)
+	{
+		printf("\n\n\t\t Symbol Table contains Global entries\n");
+		printf("\n\t %5s %15s %15s %15s %15s","INDEX","ACCESS","NAME","TYPE","LINE");
+		for(i = 0; i < global_index; i++)
+			printf("\n\t %5d %15s %15s %15s %15d",gsym_tab[i].index,gsym_tab[i].access,gsym_tab[i].sym_name,gsym_tab[i].type,gsym_tab[i].line_number);
+	}
 
 }
 
 void display_function()
 {
 	int i;
-	printf("\n\n\t\t Function Table contains User defined functions\n");
-	printf("\n\t INDEX \t LINE \t NAME \t RET_TYPE \t\t PARMTRS ");
-	for(i = 0; i < global_func_index; i++)
-		printf("\n\t %d \t %d \t %s \t %s \t\t\t %d ",func_tab[i].index,func_tab[i].line_number,func_tab[i].func_name,func_tab[i].return_type,func_tab[i].no_of_parameter);
+	if (global_func_index != 0)
+	{
+		printf("\n\n\t\t Function Table contains User defined functions\n");
+		printf("\n\t %5s %15s %15s %15s %15s","INDEX","LINE","NAME","RET_TYPE","PARMTRS");
+		for(i = 0; i < global_func_index; i++)
+			printf("\n\t %5d %15d %15s %15s %15d ",func_tab[i].index,func_tab[i].line_number,func_tab[i].func_name,func_tab[i].return_type,func_tab[i].no_of_parameter);
+	}
 }
 
 display_local_variables()
 {
 	int i;
-	printf("\n\n\t\t Symbol Table contains Local Variables \n");
-	printf("\n\t INDEX \t ACCESS \t NAME \t TYPE \t\t FUNC_INDEX \t LINE");
-	for(i = 0;i < symbol_index; i++)
-		printf("\n\t %d \t %s \t %s \t %s \t\t %d \t\t %d",i,sym_tab[i].access,sym_tab[i].sym_name,sym_tab[i].type,sym_tab[i].func_index,sym_tab[i].line_number);
+	if (symbol_index != 0)
+	{
+		printf("\n\n\t\t Symbol Table contains Local Variables \n");
+		printf("\n\t %5s %15s %15s %15s %15s %15s","INDEX","ACCESS","NAME","TYPE","FUNC_INDEX","LINE");
+		for(i = 0;i < symbol_index; i++)
+			printf("\n\t %5d %15s %15s %15s %15d %15d",i,sym_tab[i].access,sym_tab[i].sym_name,sym_tab[i].type,sym_tab[i].func_index,sym_tab[i].line_number);
+	}
 }
 
 void display_func_paramtr()
 {
 	int i;
-	printf("\n\n\t\t Symbol Table contains Parameters of function \n");
-	printf("\n\t INDEX \t NAME \t TYPE \t FUNC_INDEX");
-	for(i = 0;i < par_index; i++)
-		printf("\n\t %d \t %s \t %s \t %d",i,par_tab[i].par_name,par_tab[i].type,par_tab[i].func_index);
+	if(par_index != 0)
+	{
+		printf("\n\n\t\t Symbol Table contains Parameters of function \n");
+		printf("\n\t %5s %15s %15s %15s","INDEX","NAME","TYPE","FUNC_INDEX");
+		for(i = 0;i < par_index; i++)
+			printf("\n\t %5d %15s %15s %15d",i,par_tab[i].par_name,par_tab[i].type,par_tab[i].func_index);
+	}
+}
+
+void display_thread()
+{
+	int i;
+	if (thread_index != 0)
+	{
+		printf("\n\n\t\t Thread Table \n");
+		printf("\n\t %5s %15s %15s %15s %15s %15s","INDEX","THREAD_OBJ","FUNCTION_NAME","THREAD_ATTR","FUNC_ARG","PARENT_THREAD");
+		for(i = 0;i < thread_index; i++)
+			printf("\n\t %5d %15s %15s %15s %15s %15s",i,thread_tab[i].thread_obj,thread_tab[i].func_name,thread_tab[i].thread_attr,thread_tab[i].func_arg,thread_tab[i].parent_thread);
+	}
 }
 
 int main()
 {
-	yyin=fopen("sample.c","r");
+	yyin=fopen("thread_sample.c","r");
 	yyparse();
 	display_global_variables();
 	display_function();
 	display_local_variables();
 	display_func_paramtr();
+	display_thread();
 	return 0;
 }
