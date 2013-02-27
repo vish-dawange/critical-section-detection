@@ -2,15 +2,17 @@
 #include<stdio.h>
 #include "y.tab.h"
 
-int line_counter = 0;
-
+int line_counter = 1;
+int q_flag = 0;
 %}
-%x COMMENT SINGLE PREPROCESSOR
+%x COMMENT SINGLE PREPROCESSOR D_QOUTE
 %%
 
 int|float|char|double|long|short|signed|void|unsigned {strcpy(yylval.arg,yytext); return TYPE;}
 extern|static|typedef  {strcpy(yylval.arg,yytext); return ACCESS;}
 pthread_create  return PTHREAD_CREATE;
+sem_wait	return SEM_WAIT;
+sem_post	return SEM_POST;
 [0-9]+?[\.]?[0-9]*       {strcpy(yylval.arg,yytext); return NUM;}
 [a-zA-Z_][a-zA-Z0-9_]*     {strcpy(yylval.arg,yytext); return VAR;}
 "(" return OPEN_BR;
@@ -24,10 +26,19 @@ pthread_create  return PTHREAD_CREATE;
 ";" return SEMI;
 "=" return EQUAL_TO;
 "&" return ADDRESS;
+\"  {
+	
+	        BEGIN D_QOUTE; 
+	
+    }
 "/*"            {BEGIN COMMENT;}
 "//"            {BEGIN SINGLE;}
 "#"		{BEGIN PREPROCESSOR;}
-<COMMENT>[.]*       {
+
+<D_QOUTE>\"  { BEGIN 0;}
+<D_QOUTE>[.\n]*   {}
+
+<COMMENT>.       {
                          printf("\n%s",yytext);
                        }
 <COMMENT>[\n]          { line_counter++;}
@@ -36,9 +47,9 @@ pthread_create  return PTHREAD_CREATE;
 <SINGLE>.*             {
                          printf("\n%s",yytext);
                        }
-<SINGLE>\n             {BEGIN 0; line_counter++;}
+<SINGLE>\n             {line_counter++; BEGIN 0;}
 
-<PREPROCESSOR>\n	{BEGIN 0; line_counter++;}
+<PREPROCESSOR>\n	{line_counter++; BEGIN 0;}
 [ \t]  ;
 
 \n  { line_counter++; }
