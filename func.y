@@ -439,6 +439,7 @@ void check_thread_entry()
 
 }
 
+// Function detects critical region
 void cs_check()
 {
     int i, j, k;
@@ -446,6 +447,7 @@ void cs_check()
 	for (i = 0; i < log_index; i++)
 	{
 		cs_detect = 0;
+		// loop used to handle proper locks
 		for (k = 0; k < semphr_index; k++)
 		    if (sem_tab[k].sem_wait_point <= log_tab[i].line_number && sem_tab[k].sem_post_point >= log_tab[i].line_number)
 			    break;
