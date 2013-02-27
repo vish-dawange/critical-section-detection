@@ -24,6 +24,7 @@ typedef struct parameter
 
 typedef struct symbol_table
 {
+    int index;
     int func_index;
     char sym_name[SIZE_VAR];
     char access[SIZE_VAR];
@@ -47,14 +48,36 @@ typedef struct thread_info
     int index;
     char thread_obj[SIZE_TYPE];
     char func_name[SIZE_TYPE];
+    int func_index;	
     char thread_attr[SIZE_TYPE];
     char func_arg[SIZE_TYPE];
     char parent_thread[SIZE_TYPE];
 }thread_info;
 
 
-typedef struct function_def_log
+typedef struct func_def_log
 {
-    int index,function_index;
-    char variable[SIZE_TYPE],type[SIZE_TYPE];
-}function_def_log;
+    int index;
+    int line_number;
+    int func_index;
+    char sym_name[SIZE_TYPE];
+    char type[SIZE_TYPE];
+    int thread_func;	
+}func_def_log;
+
+typedef struct semaphore_def
+{
+     int index;
+     int sem_wait_point;
+     int sem_post_point;
+     char sem_obj[50];
+}semaphore_def;
+
+typedef struct critical_section
+{
+	int index;
+	char critical_obj[50];
+	int thread_func_index;
+	int critical_location;
+}critical_section;
+	
