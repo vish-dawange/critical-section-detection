@@ -5,16 +5,19 @@
 
 extern int line_counter; // input program line counter
 int flag = 0; // check for block entries
-int global_index = 0, func_index = 0, symbol_index = 0, par_index = 0, global_func_index = 0, par_func = 0, thread_index = 0; //table index
+int global_index = 0, func_index = 0, symbol_index = 0, par_index = 0, global_func_index = 0, par_func = 0, thread_index = 0, log_index=0, semphr_index = 0, cs_index = 0; //table index
 char data_type[20]; // c data type
 char access[20]; // access specifier (static,extern,typedef,etc.)
-int in_func_flag = 0,in_func_stmt_flag = 0, ignore_flag = 0;
+int in_func_flag = 0,in_func_stmt_flag = 0, ignore_flag = 0, local_found = 0, cs_detect = 0;
 global_symbol gsym_tab[50]; // Global variable Entries
 func_def func_tab[50]; // user defined function entries
 symbol_table sym_tab[50]; // Symbol table Object
 parameter par_tab[50]; // parameter table object
 thread_info thread_tab[50]; // thread table object
-
+func_def_log log_tab[50]; // log table object
+semaphore_def sem_tab[50]; // semaphore table object
+critical_section cs_tab[50]; // critical_section table object
+int i;
 void get_symbol(char []); // make entries into global and local variables
 
 %}
@@ -26,10 +29,10 @@ void get_symbol(char []); // make entries into global and local variables
 }
 
 //define tokens which will help to match patterns
-%token MAIN OPEN_BR CLOSE_BR OPEN_CBR CLOSE_CBR OPEN_SBR CLOSE_SBR STAR COMMA SEMI EQUAL_TO PTHREAD_CREATE ADDRESS
+%token MAIN OPEN_BR CLOSE_BR OPEN_CBR CLOSE_CBR OPEN_SBR CLOSE_SBR STAR COMMA SEMI EQUAL_TO PTHREAD_CREATE ADDRESS SEM_WAIT SEM_POST
 %token <arg>  VAR NUM ACCESS TYPE
 %token <any_arg> ANYTHING
-%type <arg> par_val1 par_val2 thread_creation
+%type <arg> par_val1 par_val2 thread_creation sem_var
 %%
 
 // Start of Grammar with recursive statement
@@ -206,7 +209,41 @@ any:	stmnt |
 	ANYTHING |
 	NUM |
 	VAR {
-		
+		local_found = 0;
+		for(i = 0;i < symbol_index; i++)
+		{
+			if (sym_tab[i].func_index == global_func_index - 1 && strcmp(sym_tab[i].sym_name,$1) == 0)
+			{
+				local_found = 1;
+				log_tab[log_index].index = log_index;
+				log_tab[log_index].line_number = line_counter;
+				log_tab[log_index].func_index = global_func_index - 1;
+				strcpy(log_tab[log_index].sym_name,$1);
+				strcpy(log_tab[log_index].type,"Local");
+				printf("\nGlobal_func_index :%d",global_func_index-1);
+				printf("\n\t %5d %15s %15s %15s %15d",log_index,func_tab[log_tab[log_index].func_index].func_name,log_tab[log_index].sym_name,log_tab[log_index].type,log_tab[log_index].line_number);
+				log_index++;
+			}
+		}
+
+		if (!local_found)
+		{
+			for(i = 0;i < global_index; i++)
+			{
+				if (strcmp(gsym_tab[i].sym_name,$1) == 0)
+				{
+					log_tab[log_index].index = log_index;
+					log_tab[log_index].line_number = line_counter;
+					log_tab[log_index].func_index = global_func_index - 1;
+					strcpy(log_tab[log_index].sym_name,$1);
+					strcpy(log_tab[log_index].type,"Global");
+					printf("\nGlobal_func_index :%d",global_func_index-1);
+					printf("\n\t %5d %15s %15s %15s %15d",log_index,func_tab[log_tab[log_index].func_index].func_name,log_tab[log_index].sym_name,log_tab[log_index].type,log_tab[log_index].line_number);
+					log_index++;
+				}
+			}
+		}
+    printf("\n Variable: %s-",$1);
 	    }|
 	block |
 	OPEN_BR |
@@ -216,10 +253,25 @@ any:	stmnt |
 	STAR |
 	COMMA |
 	SEMI |
-	EQUAL_TO|
-	thread_creation|
+	EQUAL_TO |
+	thread_creation |
 	PTHREAD_CREATE |
-	ADDRESS
+	ADDRESS |
+	SEM_WAIT OPEN_BR sem_var {	sem_tab[semphr_index].index = semphr_index;
+					sem_tab[semphr_index].sem_wait_point = line_counter;
+					strcpy(sem_tab[semphr_index].sem_obj,$3);
+					semphr_index++;
+				} CLOSE_BR SEMI |
+	SEM_POST OPEN_BR sem_var {
+					for(i = 0; i < semphr_index; i++)
+						if (strcmp(sem_tab[i].sem_obj,$3) == 0)
+							sem_tab[i].sem_post_point = line_counter;
+				} CLOSE_BR SEMI
+	;
+
+sem_var :	ADDRESS	VAR { strcpy($$,$2); }
+// |
+//		ADDRESS VAR { strcpy($$,$2); } OPEN_SBR VAR CLOSE_SBR
 	;
 
 // pattern match for pthread_create
@@ -228,7 +280,7 @@ thread_creation : PTHREAD_CREATE OPEN_BR ADDRESS VAR COMMA par_val1 COMMA VAR { 
 										strcpy(thread_tab[thread_index].thread_obj, $4);
 										strcpy(thread_tab[thread_index].func_name,$8);
 										strcpy(thread_tab[thread_index].parent_thread,func_tab[func_index-1].func_name);
-										
+
 									} COMMA  par_val2 CLOSE_BR  {printf("\ncorrect thread...."); thread_index++;}
 		;
 
@@ -263,6 +315,7 @@ void get_symbol(char var[10])
 	{
 
 	    sym_tab[symbol_index].func_index = func_index-1;
+	    sym_tab[symbol_index].index = symbol_index;
 	    strcpy(sym_tab[symbol_index].access,access);
 	    strcpy(sym_tab[symbol_index].sym_name,var);
 	    strcpy(sym_tab[symbol_index].type,data_type);
@@ -328,10 +381,141 @@ void display_thread()
 	if (thread_index != 0)
 	{
 		printf("\n\n\t\t Thread Table \n");
-		printf("\n\t %5s %15s %15s %15s %15s %15s","INDEX","THREAD_OBJ","FUNCTION_NAME","THREAD_ATTR","FUNC_ARG","PARENT_THREAD");
+		printf("\n\t %5s %15s %15s %15s %15s %15s %15s","INDEX","THREAD_OBJ","FUNCTION_NAME","FUNC_INDEX","THREAD_ATTR","FUNC_ARG","PARENT_THREAD");
 		for(i = 0;i < thread_index; i++)
-			printf("\n\t %5d %15s %15s %15s %15s %15s",i,thread_tab[i].thread_obj,thread_tab[i].func_name,thread_tab[i].thread_attr,thread_tab[i].func_arg,thread_tab[i].parent_thread);
+			printf("\n\t %5d %15s %15s %15d %15s %15s %15s",i,thread_tab[i].thread_obj,thread_tab[i].func_name,thread_tab[i].func_index,thread_tab[i].thread_attr,thread_tab[i].func_arg,thread_tab[i].parent_thread);
 	}
+}
+
+void display_log()
+{
+	int i;
+	if (log_index != 0)
+	{
+		printf("\n\n\t\t Log Table \n");
+		printf("\n\t %5s %15s %15s %15s %15s %15s","INDEX","FUNCTION_NAME","SYMBOL","TYPE","LINE_NUMBER","THREAD_FUNC");
+		for(i = 0;i < log_index; i++)
+			printf("\n\t %5d %15s %15s %15s %15d %15d",i,func_tab[log_tab[i].func_index].func_name,log_tab[i].sym_name,log_tab[i].type,log_tab[i].line_number, log_tab[i].thread_func);
+	}
+}
+
+void display_semaphr()
+{
+	int i;
+	if (semphr_index != 0)
+	{
+		printf("\n\n\t\t Semaphore Table \n");
+		printf("\n\t %5s %15s %15s %15s","INDEX","SEM_OBJECT","WAIT_POINT","POST_POINT");
+		for(i = 0;i < semphr_index; i++)
+			printf("\n\t %5d %15s %15d %15d",i,sem_tab[i].sem_obj,sem_tab[i].sem_wait_point,sem_tab[i].sem_post_point);
+	}
+}
+
+void assign_func_index()
+{
+	int i, j;
+
+	for (i = 0; i < thread_index; i++)
+		for (j = 0; j < global_func_index; j++)
+			if (strcmp(thread_tab[i].func_name,func_tab[j].func_name) == 0)
+			{
+				thread_tab[i].func_index = func_tab[j].index;
+				break;
+			}
+}
+
+
+void check_thread_entry()
+{
+	int i, j;
+
+	for (i = 0; i < log_index; i++)
+		for(j = 0; j < thread_index; j++)
+			if (log_tab[i].func_index == thread_tab[j].func_index)
+			{
+				log_tab[i].thread_func = 1;
+				break;
+			}
+
+}
+
+void cs_check()
+{
+    int i, j, k;
+
+	for (i = 0; i < log_index; i++)
+	{
+		cs_detect = 0;
+		for (k = 0; k < semphr_index; k++)
+		    if (sem_tab[k].sem_wait_point <= log_tab[i].line_number && sem_tab[k].sem_post_point >= log_tab[i].line_number)
+			    break;
+		if (k != semphr_index)
+		    continue;
+
+		if ( (log_tab[i].thread_func) && strcmp(log_tab[i].type,"Global") == 0)
+		{
+			for (j= i + 1; j < log_index; j++)
+			{
+				if ( (log_tab[j].thread_func) && log_tab[i].func_index != log_tab[j].func_index  && strcmp(log_tab[j].type,"Global") == 0 && strcmp(log_tab[i].sym_name,log_tab[j].sym_name) == 0)
+				{
+				    for (k = 0; k < semphr_index; k++)
+					if (sem_tab[k].sem_wait_point <= log_tab[j].line_number && sem_tab[k].sem_post_point >= log_tab[j].line_number)
+					    break;
+
+				    if (k != semphr_index)
+					continue;
+				    cs_detect = 1;
+				    for (k = 0;k < cs_index; k++)
+					{
+					    if (log_tab[j].line_number == cs_tab[k].critical_location && strcmp(log_tab[j].sym_name,cs_tab[k].critical_obj) == 0)
+						break;
+					}
+				    if (k == cs_index)
+					{
+
+					    cs_tab[cs_index].index = cs_index;
+					    strcpy(cs_tab[cs_index].critical_obj, log_tab[j].sym_name);
+					    cs_tab[cs_index].thread_func_index = log_tab[j].func_index;
+					    cs_tab[cs_index].critical_location = log_tab[j].line_number;
+					    cs_index++;
+					}
+
+				}
+			}
+			if (cs_detect)
+			{
+			    for (k = 0;k < cs_index; k++)
+				{
+				    if (log_tab[i].line_number == cs_tab[k].critical_location && strcmp(log_tab[j].sym_name,cs_tab[k].critical_obj) == 0)
+					break;
+				}
+			    if (k == cs_index)
+				{
+				    cs_tab[cs_index].index = cs_index;
+				    strcpy(cs_tab[cs_index].critical_obj, log_tab[i].sym_name);
+				    cs_tab[cs_index].thread_func_index = log_tab[i].func_index;
+				    cs_tab[cs_index].critical_location = log_tab[i].line_number;
+				    cs_index++;
+				}
+			}
+		}
+	}
+
+}
+
+
+void display_critical_section()
+{
+	int i;
+	if (cs_index != 0)
+	{
+		printf("\n\n\t\t Critical Section Detected \n");
+		//	printf("\n\t %5s %15s %15s %15s","INDEX","CRITICAL_OBJECT","THREAD_FUNC_INDEX","CRITICAL_LOCATION");
+		for(i = 0;i < cs_index; i++)
+		    printf("\n\t INDEX: %d \n\t Shared Object: %s \n\t Thread Function Index:  %d \n\t Thread Function: %s \n\t Critical Location:  %d \n\n",i,cs_tab[i].critical_obj,cs_tab[i].thread_func_index,thread_tab[cs_tab[i].thread_func_index].func_name,cs_tab[i].critical_location);
+	}
+	else
+		printf("\n\n NO CRITICAL SECTION DETECTED");
 }
 
 int main()
@@ -342,6 +526,12 @@ int main()
 	display_function();
 	display_local_variables();
 	display_func_paramtr();
+	assign_func_index();
+	check_thread_entry();
 	display_thread();
+	display_log();
+	display_semaphr();
+	cs_check();
+	display_critical_section();
 	return 0;
 }
