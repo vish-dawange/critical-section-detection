@@ -1,0 +1,6 @@
+/**** SEMAPHORE TEST CASES ****/
+
+1. Handle sem_wait & sem_post		-	Done
+2. Handle object of sem_t		-	Not Done
+3. Handle array of object of sem_t	-	Not Done
+ 
