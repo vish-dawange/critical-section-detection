@@ -3,24 +3,38 @@
 #include <pthread.h>
 #include <unistd.h>
 
+struct abcd
+{
+ int abds;
+ int flag;
+}abcd;
 
 int X;
+//U_TYPE abc;
+struct abcd a132;
 int Y = 4;
-
+int *xyz[];
+void* function12(int j,int i);
 void* function1()
 {
-    while(1)
+	int X;
 	{
+		extern int X;
 
-	    X = 0; // write
+		while(1)
+		{
 
-	    printf("After thread ID A	writes to X, X = %d\n and Y = %d\n", X, Y);
-	    X++;
+			X = 0; // write
+			printf("After thread ID A	writes to X, X = %d\n and Y = %d\n", X, Y);
+			X++;
 
-	    sleep(1);
+			sleep(1);
+		}
+
+
 	}
+	printf("Value Of X: %d",X);
 }
-
 void* function2()
 {
     while(1)
