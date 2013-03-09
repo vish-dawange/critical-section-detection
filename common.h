@@ -6,6 +6,7 @@
 #define SIZE_TYPE 20
 #define SIZE_TABLE 50
 
+
 typedef struct global_symbol
 {
     int index;
@@ -48,7 +49,7 @@ typedef struct thread_info
     int index;
     char thread_obj[SIZE_TYPE];
     char func_name[SIZE_TYPE];
-    int func_index;	
+    int func_index;
     char thread_attr[SIZE_TYPE];
     char func_arg[SIZE_TYPE];
     char parent_thread[SIZE_TYPE];
@@ -60,9 +61,10 @@ typedef struct func_def_log
     int index;
     int line_number;
     int func_index;
+    int thread_index;
     char sym_name[SIZE_TYPE];
     char type[SIZE_TYPE];
-    int thread_func;	
+    int thread_func;
 }func_def_log;
 
 typedef struct semaphore_def
@@ -80,4 +82,8 @@ typedef struct critical_section
 	int thread_func_index;
 	int critical_location;
 }critical_section;
-	
+
+typedef struct thread_log
+{
+	int func_index;
+}thread_log;
