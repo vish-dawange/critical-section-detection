@@ -1,7 +1,7 @@
 // TEST CASES //
 
 1. Handle global variables of c data_types	-	Done
-2. Handle global variables of userdefined DT	-	Not Done
+2. Handle global variables of userdefined DT	-	Done(Remaing : typedef)
 3. Handle User Defined function entries		-	Done
 4. Handle local varibales			- 	Done
 6. Handle Thread entries			-	Done
@@ -9,10 +9,14 @@
 8. Handle nested data types(like long int,long long) -	Done
 9. Ignore Preprocessors				-	Done
 10. Ignore comments				-	Done
-11. Ignore structure definition			-	Not Done
+11. Ignore structure definition			-	Done
 12. handle empty Udefined function	 	-	Done 
 13. Access specifier for local variables	-	Done
 14. Handle UDefined function without parameters	-	Done
-15. Handle shadowing of global variables        -       Not Done
+15. Handle shadowing of global variables        -       Done
 5. Handle pointer variables			-	Not Done*
 16. Handle semaphores and pthread libraries	-  	Not Done*
+17. Function prototype Declaration		-	Partial Done
+18. Handle (multiline) macros			-	Not Done
+19. Same function with different thread id	-	Done
+20. Structure definition with multiple variables-	Not Done
