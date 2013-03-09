@@ -10,6 +10,7 @@ int q_flag = 0;
 
 int|float|char|double|long|short|signed|void|unsigned {strcpy(yylval.arg,yytext); return TYPE;}
 extern|static|typedef  {strcpy(yylval.arg,yytext); return ACCESS;}
+struct|union|enum  {strcpy(yylval.arg,yytext); return U_STRUCT;}
 pthread_create  return PTHREAD_CREATE;
 sem_wait	return SEM_WAIT;
 sem_post	return SEM_POST;
@@ -26,10 +27,11 @@ sem_post	return SEM_POST;
 ";" return SEMI;
 "=" return EQUAL_TO;
 "&" return ADDRESS;
+"->" return POINTER_ACCESS;
 \"  {
-	
-	        BEGIN D_QOUTE; 
-	
+
+                BEGIN D_QOUTE;
+
     }
 "/*"            {BEGIN COMMENT;}
 "//"            {BEGIN SINGLE;}
@@ -39,13 +41,13 @@ sem_post	return SEM_POST;
 <D_QOUTE>[.\n]*   {}
 
 <COMMENT>.       {
-                         printf("\n%s",yytext);
+                         printf("%s",yytext);
                        }
 <COMMENT>[\n]          { line_counter++;}
 <COMMENT>"*/"          {        BEGIN 0;
                        }
 <SINGLE>.*             {
-                         printf("\n%s",yytext);
+                         printf("%s",yytext);
                        }
 <SINGLE>\n             {line_counter++; BEGIN 0;}
 
@@ -53,7 +55,7 @@ sem_post	return SEM_POST;
 [ \t]  ;
 
 \n  { line_counter++; }
-. { yylval.any_arg=yytext[0];printf("-%c-",yytext[0]); return ANYTHING;}
+. { yylval.any_arg=yytext[0];printf("-%c-",yytext[0]);}
 
 %%
 
@@ -64,5 +66,5 @@ int yywrap()
 
 int yyerror()
 {
-        printf("\nError...");
+        printf("\nError...:%s \t Line no:%d",yytext,line_counter);
 }
