@@ -52,8 +52,7 @@ start:	stmnt start {printf("\n corrrect program with multiple statements");}|
 	;
 
 // Process c statements
-stmnt:	func_stmnt |
-	user_defination |
+stmnt:	user_defination |	
 	declarative_stmnt SEMI	{
 					// Check for local/global variable
 					if (flag == 1) printf("\n Local Variable");
@@ -61,130 +60,41 @@ stmnt:	func_stmnt |
 					{
 						printf("\n Correct Global Declaration");
 					}
-				}
-	//any |
-
-
-	//func_declare_stmnt
+				} |
+	func_stmnt
 	;
 
-//func_declare_stmnt:	type VAR bracket SEMI {printf("\n Function declaration correct");}
-//		;
-
-user_defination	:	//ACCESS U_STRUCT struct_block|
-			z SEMI {struct_flag = 0;} |
-			z multi_var SEMI {struct_flag = 0;} |
-			d SEMI {struct_flag = 0;} |
-			d multi_var SEMI {struct_flag = 0;} |
+// Process user defined strutures like struct, enum, union
+user_defination:	user_def_type1 SEMI {struct_flag = 0;} |
+			user_def_type1 multi_var SEMI {struct_flag = 0;} |
+			user_def_type2 SEMI {struct_flag = 0;} |
+			user_def_type2 multi_var SEMI {struct_flag = 0;} |
 			U_STRUCT {struct_flag = 1;} block multi_var SEMI {struct_flag = 0;} |
 			ACCESS U_STRUCT {struct_flag = 1;} block multi_var SEMI {struct_flag = 0;} //|
-			//ACCESS U_STRUCT VAR|
-			//U_STRUCT VAR|
 			;
 
-z :	u_struct {struct_flag = 1;} block
-	;
-d:	ACCESS U_STRUCT {struct_flag = 1;} VAR block
-	;
+// Process : struct/union/enum struct_name {/* declaration */}
+user_def_type1 :	u_struct {struct_flag = 1;} block
+			;
 
+// Process : typedef struct/union/enum struct_name {/* declaration */}
+user_def_type2 :	ACCESS U_STRUCT {struct_flag = 1;} VAR block
+			;
+
+// Process : struct/union/enum struct_name
+u_struct :              U_STRUCT VAR { strcpy(data_type,$2);}
+			;
+
+// Process variable declarations at end of structure block
 multi_var:	VAR |
 		VAR COMMA multi_var
 		;
 
-utype_declaration:	u_struct var_list
-			;
-
-u_struct :              U_STRUCT VAR { strcpy(data_type,$2);}
-			;
-/*ignore_code:	ANYTHING |
-		operand |
-		{ignore_flag = 1;} block |
-		OPEN_BR |
-		CLOSE_BR|
-		OPEN_SBR|
-		CLOSE_SBR|
-		STAR |
-		COMMA |
-		SEMI |
-		EQUAL_TO
-		TYPE |
-		ACCESS|
-		type VAR bracket SEMI
-		;
-
-*/
 
 // pattern match for variable declaration
 declarative_stmnt:	type var_list {printf("\ncorrect variable declaration...");} |
 			utype_declaration
 			;
-
-// pattern match for one or more varibles
-var_list:	variable COMMA var_list |
-		variable
-		;
-
-// make entry of variable based on block entries or global entries
-variable:	VAR { get_symbol($1); } |
-		b assign_expr |
-		VAR array { get_symbol($1); } |
-		a assign_expr |
-		array VAR { get_symbol($2); } EQUAL_TO assign_expr |
-		b assign_expr |
-		a assign_expr |
-					//array VAR { get_symbol($2); } EQUAL_TO block |
-		b assign_expr |
-		a assign_expr |
-		pointer VAR { get_symbol($2); } EQUAL_TO assign_expr |
-		pointer VAR { get_symbol($2); } 
-		;
-
-a :	VAR array EQUAL_TO { get_symbol($1); }
-	;
-
-b :	VAR { get_symbol($1); }	 EQUAL_TO
-	;
-
-assign_expr:	OPEN_CBR assign_expr | CLOSE_CBR assign_expr |  CLOSE_CBR |
-		any_expr assign_expr |
-		any_expr
-	;
-
-assign_expr1:	OPEN_CBR assign_expr  CLOSE_CBR  |
-		any_expr assign_expr |
-		any_expr
-	;
-		
-// pattern match for function statement
-func_stmnt:	func_prototype SEMI {par_index = par_index - par_counter; printf("\n Correct Function prototype Declaration");} |
-		func_prototype {
-
-				// Make entry function into func_table
-				printf("\n Correct Function Declaration");
-
-				func_tab[global_func_index].index = global_func_index;
-				func_tab[global_func_index].line_number = line_counter;
-				func_tab[global_func_index].no_of_parameter = par_index + 1;
-
-				global_func_index++;
-
-			    } block
-	;
-
-
-// pattern match for function prototype
-func_prototype: type VAR {
-				// pattern match return type and function name
-				strcpy(func_tab[global_func_index].return_type,data_type);
-				strcpy(func_tab[global_func_index].func_name,$2);
-				printf("\n Correct Function prototype");
-		} bracket {printf("\n Correct Function prototype");}
-		;
-
-bracket:	OPEN_BR { par_counter = 0;}
-par CLOSE_BR |
-		OPEN_BR CLOSE_BR
-		;
 
 // pattern match for c data type
 type:	ACCESS {
@@ -222,12 +132,12 @@ type:	ACCESS {
 	;
 
 //pattern match for combinations of data types
-type_def:TYPE {strcat(data_type,$1); strcat(data_type," ");} type_def |
-	 TYPE {strcat(data_type,$1); strcat(data_type," ");} pointer |
-	 TYPE {strcat(data_type,$1); strcat(data_type," ");} array |
-	 //TYPE {strcat(data_type,$1); strcat(data_type," ");} type_def array |
-	 TYPE {strcat(data_type,$1);}
-	 ;
+type_def:	TYPE {strcat(data_type,$1); strcat(data_type," ");} type_def |
+	 	TYPE {strcat(data_type,$1); strcat(data_type," ");} pointer |
+	 	TYPE {strcat(data_type,$1); strcat(data_type," ");} array |
+	 	//TYPE {strcat(data_type,$1); strcat(data_type," ");} type_def array |
+	 	TYPE {strcat(data_type,$1);}
+	 	;
 
 // pattern match for pointer
 pointer: STAR pointer|
@@ -235,14 +145,90 @@ pointer: STAR pointer|
 	 ;
 
 // pattern match for array
-array:	OPEN_SBR operand CLOSE_SBR |
-	OPEN_SBR operand CLOSE_SBR array |
-	OPEN_SBR CLOSE_SBR |
-	OPEN_SBR CLOSE_SBR array 
+array:	array_type1 |
+	array_type1 array |
+	array_type2 |
+	array_type2 array 
 	;
 
-operand:NUM | VAR
+// process: [ VAR/NUM ]
+array_type1:	OPEN_SBR operand CLOSE_SBR
+		;
+
+// process: [ ]
+array_type2:	OPEN_SBR CLOSE_SBR
+		;
+
+// process Numbers or symbols
+operand:	NUM | VAR
+		;
+
+// pattern match for one or more varibles
+var_list:	variable COMMA var_list |
+		variable
+		;
+
+// process structure declarations
+utype_declaration:	u_struct var_list
+			;
+
+
+// make entry of variable based on block entries or global entries
+variable:	VAR { get_symbol($1); } |
+		variable_type1 assign_expr |
+		variable_type2 assign_expr |
+		VAR array { get_symbol($1); } |		
+		array VAR { get_symbol($2); } EQUAL_TO assign_expr |
+		//array VAR { get_symbol($2); } EQUAL_TO block |
+		pointer VAR { get_symbol($2); } EQUAL_TO assign_expr |
+		pointer VAR { get_symbol($2); } 
+		;
+
+// process var_name [] =
+variable_type2:	VAR array EQUAL_TO { get_symbol($1); }
+		;
+
+// process var_name =
+variable_type1:	VAR { get_symbol($1); }	 EQUAL_TO
+		;
+
+// process assignment operation
+assign_expr:	OPEN_CBR assign_expr | CLOSE_CBR assign_expr |  CLOSE_CBR |
+		any_expr assign_expr |
+		any_expr
+		;
+		
+// pattern match for function statement
+func_stmnt:	func_prototype SEMI {par_index = par_index - par_counter; printf("\n Correct Function prototype Declaration");} |
+		func_prototype {
+
+				// Make entry function into func_table
+				printf("\n Correct Function Declaration");
+
+				func_tab[global_func_index].index = global_func_index;
+				func_tab[global_func_index].line_number = line_counter;
+				func_tab[global_func_index].no_of_parameter = par_index + 1;
+
+				global_func_index++;
+
+			    } block
 	;
+
+
+// pattern match for function prototype
+func_prototype: type VAR {
+				// pattern match return type and function name
+				strcpy(func_tab[global_func_index].return_type,data_type);
+				strcpy(func_tab[global_func_index].func_name,$2);
+				printf("\n Correct Function prototype");
+		} bracket {printf("\n Correct Function prototype");}
+		;
+
+// process function parameters
+bracket:	OPEN_BR { par_counter = 0;} par CLOSE_BR |
+		OPEN_BR CLOSE_BR
+		;
+
 
 // pattern match for function parameters
 par:	parameter COMMA par|
@@ -250,27 +236,39 @@ par:	parameter COMMA par|
 	;
 
 // pattern match for parameter entry
-parameter:	c |
-		c array |
+parameter:	parameter_type1 |
+		parameter_type1 array |
 		utype_par
 		//{strcpy(data_type,"");} type
 		;
 
-c :	{strcpy(data_type,"");} type VAR{
+// process: data_type var_name
+parameter_type1:	parameter_type2 VAR	{
 							par_tab[par_index].func_index = global_func_index;
 							strcpy(par_tab[par_index].type,data_type);
-							strcpy(par_tab[par_index].par_name,$3);
+							strcpy(par_tab[par_index].par_name,$2);
 							printf("\n\t\t %s \t %s \t %d",par_tab[par_index].par_name,par_tab[par_index].type,par_tab[par_index].func_index);
 							par_index++;
 							par_counter++;
-						} 
+						} |
+			parameter_type2
+			;
+
+// process built in data types
+parameter_type2:	{strcpy(data_type,"");} type
 	;
 
-utype_par :     u_struct VAR |
+// process structure parameters to the function
+utype_par:      utype_par_type1 |
+		utype_par_type1 array |		
 		u_struct array VAR |
-		u_struct VAR array |
 		u_struct pointer VAR
 		;
+
+// process struct/union/enum struct_name var_name
+utype_par_type1:	u_struct VAR
+			;
+
 // pattern match for block entry
 block:	OPEN_CBR
 		{
@@ -309,6 +307,7 @@ code:	block | block code |
 	any
 	;
 
+// process any code that will appear in function blocks
 any:
 	NUM |
 	VAR {
@@ -346,10 +345,8 @@ any:
 				}
 			}
 		}
-    printf("\n Variable: %s:",$1);
+    		printf("\n Variable: %s:",$1);
 	    }|
-	//block |
-	//VAR OPEN_BR {printf("yes....here only....");} assign_expr1 SEMI| 
 	OPEN_BR |
 	CLOSE_BR|
 	OPEN_SBR|
@@ -376,7 +373,7 @@ any:
 	;
 
 
-
+// process any code that will appear in assignment expression
 any_expr:
 	NUM |
 	VAR {
@@ -441,31 +438,50 @@ any_expr:
 				} CLOSE_BR SEMI
 	;
 
-
-sem_var :	ADDRESS	VAR { strcpy($$,$2); }
+// process semaphore parameters
+sem_var :	ADDRESS	VAR { strcpy($$,$2); } |
+		VAR
 // |
 //		ADDRESS VAR { strcpy($$,$2); } OPEN_SBR VAR CLOSE_SBR
 	;
 
 // pattern match for pthread_create
-thread_creation : PTHREAD_CREATE OPEN_BR ADDRESS VAR COMMA par_val1 COMMA VAR { printf("\n thread object %s pointing to function %s",$4,$8);
+thread_creation : thread_creation_type1 COMMA par_val1 COMMA VAR { printf(" pointing to function %s",$5);
 										thread_tab[thread_index].index = thread_index;
-										strcpy(thread_tab[thread_index].thread_obj, $4);
-										strcpy(thread_tab[thread_index].func_name,$8);
+										
+										strcpy(thread_tab[thread_index].func_name,$5);
+										strcpy(thread_tab[thread_index].parent_thread,func_tab[func_index-1].func_name);
+
+									} COMMA  par_val2 CLOSE_BR  {printf("\ncorrect thread...."); thread_index++;} |
+		thread_creation_type1 array COMMA par_val1 COMMA VAR { printf(" pointing to function %s",$6);
+										thread_tab[thread_index].index = thread_index;
+										
+										strcpy(thread_tab[thread_index].func_name,$6);
 										strcpy(thread_tab[thread_index].parent_thread,func_tab[func_index-1].func_name);
 
 									} COMMA  par_val2 CLOSE_BR  {printf("\ncorrect thread...."); thread_index++;}
 		;
 
-par_val1 : ADDRESS VAR {printf("\n Thread attribute: %s",$2);
-			strcpy(thread_tab[thread_index].thread_attr,$2);
-			} | VAR { strcpy(thread_tab[thread_index].thread_attr,$1); }
-	;
+// process: pthread_create ( & thread_object )
+thread_creation_type1:	PTHREAD_CREATE OPEN_BR ADDRESS VAR {	printf("\n thread object %s ",$4);
+						strcpy(thread_tab[thread_index].thread_obj, $4);
+					   }
+			;
 
-par_val2:  VAR {printf("\n Thread function parameter : %s",$1); strcpy(thread_tab[thread_index].func_arg,$1);}
-	|
-	OPEN_BR type CLOSE_BR ADDRESS VAR {printf("\n Thread function parameter : %s",$5); strcpy(thread_tab[thread_index].func_arg,$5);}
-	;
+par_val1: 	ADDRESS VAR	{	
+					printf("\n Thread attribute: %s",$2);
+					strcpy(thread_tab[thread_index].thread_attr,$2);
+				} | 
+		VAR { strcpy(thread_tab[thread_index].thread_attr,$1); }
+		;
+
+par_val2:	VAR {printf("\n Thread function parameter : %s",$1); strcpy(thread_tab[thread_index].func_arg,$1);} |
+		par_val2_type1 VAR {printf("\n Thread function parameter : %s",$2); strcpy(thread_tab[thread_index].func_arg,$2);} |
+		par_val2_type1 ADDRESS VAR {printf("\n Thread function parameter : %s",$3); strcpy(thread_tab[thread_index].func_arg,$3);}
+		;
+
+par_val2_type1:	OPEN_BR type CLOSE_BR
+		;
 
 %%
 
