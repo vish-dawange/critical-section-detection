@@ -73,17 +73,23 @@ stmnt:	func_stmnt |
 
 user_defination	:	//ACCESS U_STRUCT struct_block|
 			z SEMI {struct_flag = 0;} |
-			z VAR SEMI {struct_flag = 0;} |
-			ACCESS U_STRUCT {struct_flag = 1;} VAR block SEMI {struct_flag = 0;} |
-			ACCESS U_STRUCT {struct_flag = 1;} VAR block VAR SEMI {struct_flag = 0;} |
-			U_STRUCT {struct_flag = 1;} block VAR SEMI {struct_flag = 0;} |
-			ACCESS U_STRUCT {struct_flag = 1;} block VAR SEMI {struct_flag = 0;} //|
+			z multi_var SEMI {struct_flag = 0;} |
+			d SEMI {struct_flag = 0;} |
+			d multi_var SEMI {struct_flag = 0;} |
+			U_STRUCT {struct_flag = 1;} block multi_var SEMI {struct_flag = 0;} |
+			ACCESS U_STRUCT {struct_flag = 1;} block multi_var SEMI {struct_flag = 0;} //|
 			//ACCESS U_STRUCT VAR|
 			//U_STRUCT VAR|
 			;
 
 z :	u_struct {struct_flag = 1;} block
 	;
+d:	ACCESS U_STRUCT {struct_flag = 1;} VAR block
+	;
+
+multi_var:	VAR |
+		VAR COMMA multi_var
+		;
 
 utype_declaration:	u_struct var_list
 			;
@@ -143,7 +149,12 @@ assign_expr:	OPEN_CBR assign_expr | CLOSE_CBR assign_expr |  CLOSE_CBR |
 		any_expr assign_expr |
 		any_expr
 	;
-		;
+
+assign_expr1:	OPEN_CBR assign_expr  CLOSE_CBR  |
+		any_expr assign_expr |
+		any_expr
+	;
+		
 // pattern match for function statement
 func_stmnt:	func_prototype SEMI {par_index = par_index - par_counter; printf("\n Correct Function prototype Declaration");} |
 		func_prototype {
@@ -190,8 +201,8 @@ type:	ACCESS {
 		{strcpy(data_type," ");} type_def {
 							strcpy(access,"Default");
 							printf("\n Correct type \t line No. :%d",line_counter);
-						   } //|
-		/*ACCESS {
+						   }/* |
+		ACCESS {
 		strcpy(access,$1);
 		strcpy(data_type," ");
 		if ( strcmp(access, "extern") == 0)
@@ -225,8 +236,9 @@ pointer: STAR pointer|
 
 // pattern match for array
 array:	OPEN_SBR operand CLOSE_SBR |
-	OPEN_SBR CLOSE_SBR array |
-	OPEN_SBR CLOSE_SBR
+	OPEN_SBR operand CLOSE_SBR array |
+	OPEN_SBR CLOSE_SBR |
+	OPEN_SBR CLOSE_SBR array 
 	;
 
 operand:NUM | VAR
@@ -251,7 +263,7 @@ c :	{strcpy(data_type,"");} type VAR{
 							printf("\n\t\t %s \t %s \t %d",par_tab[par_index].par_name,par_tab[par_index].type,par_tab[par_index].func_index);
 							par_index++;
 							par_counter++;
-						}
+						} 
 	;
 
 utype_par :     u_struct VAR |
@@ -337,10 +349,12 @@ any:
     printf("\n Variable: %s:",$1);
 	    }|
 	//block |
+	//VAR OPEN_BR {printf("yes....here only....");} assign_expr1 SEMI| 
 	OPEN_BR |
 	CLOSE_BR|
 	OPEN_SBR|
 	CLOSE_SBR|
+	OPEN_BR type CLOSE_BR |
 	STAR |
 	COMMA |
 	SEMI |
@@ -754,20 +768,23 @@ int main()
 
 	init_cbr_stack(&cbr_stack); // initialize curlybrace stack
 
-	assign_func_index();
-	check_thread_entry();
-	check_threads();
-	cs_check();
-
+	
 	display_global_variables();
 	display_function();
 	display_local_variables();
 	display_func_paramtr();
-	display_thread();
-	display_log();
+	
 	display_semaphr();
 	
+	assign_func_index();
+	display_thread();
+	check_thread_entry();
+	check_threads();
+	display_log();	
+	cs_check();
 	
+	
+
 	display_critical_section();
 	return 0;
 }
