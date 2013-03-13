@@ -11,7 +11,7 @@ int flag = 0; // check for block entries
 int global_index = 0, func_index = 0, symbol_index = 0, par_index = 0, global_func_index = 0, par_func = 0, thread_index = 0, log_index=0, semphr_index = 0, cs_index = 0, thread_log_index = 0; //table index
 char data_type[20]; // c data type
 char access[20]; // access specifier (static,extern,typedef,etc.)
-int in_func_flag = 0,in_func_stmt_flag = 0, ignore_flag = 0, local_found = 0, cs_detect = 0, extern_flag = 0, struct_flag = 0;
+int in_func_flag = 0,in_func_stmt_flag = 0, ignore_flag = 0, local_found = 0, cs_detect = 0, extern_flag = 0, struct_flag = 0, thread_lib_flag = 0;
 global_symbol gsym_tab[50]; // Global variable Entries
 func_def func_tab[50]; // user defined function entries
 symbol_table sym_tab[50]; // Symbol table Object
@@ -39,7 +39,7 @@ stack_brace cbr_stack; // Stack for handling equal curly braces
 }
 
 //define tokens which will help to match patterns
-%token MAIN OPEN_BR CLOSE_BR OPEN_CBR CLOSE_CBR OPEN_SBR CLOSE_SBR STAR COMMA SEMI EQUAL_TO PTHREAD_CREATE ADDRESS SEM_WAIT SEM_POST U_STRUCT POINTER_ACCESS
+%token MAIN OPEN_BR CLOSE_BR OPEN_CBR CLOSE_CBR OPEN_SBR CLOSE_SBR STAR COMMA SEMI EQUAL_TO PTHREAD_CREATE ADDRESS SEM_WAIT SEM_POST U_STRUCT POINTER_ACCESS THREAD_LIB
 %token <arg>  VAR NUM ACCESS TYPE
 %token <any_arg> ANYTHING
 %type <arg> par_val1 par_val2 thread_creation sem_var
@@ -61,7 +61,8 @@ stmnt:	user_defination |
 						printf("\n Correct Global Declaration");
 					}
 				} |
-	func_stmnt
+	func_stmnt //|
+	//thread_lib
 	;
 
 // Process user defined strutures like struct, enum, union
@@ -93,7 +94,8 @@ multi_var:	VAR |
 
 // pattern match for variable declaration
 declarative_stmnt:	type var_list {printf("\ncorrect variable declaration...");} |
-			utype_declaration
+			utype_declaration |
+			THREAD_LIB {thread_lib_flag = 1;} var_list {thread_lib_flag = 0;}
 			;
 
 // pattern match for c data type
@@ -169,12 +171,22 @@ var_list:	variable COMMA var_list |
 		;
 
 // process structure declarations
-utype_declaration:	u_struct var_list
+utype_declaration:	u_struct var_list |
+			ACCESS u_struct {
+						strcpy(access,$1);
+						strcpy(data_type," ");
+						if ( strcmp(access, "extern") == 0)
+						{
+							extern_flag = 1;
+							release_value = cbr_stack.top;
+						}
+					} var_list
 			;
 
 
 // make entry of variable based on block entries or global entries
 variable:	VAR { get_symbol($1); } |
+		//VAR { get_symbol($1); } EQUAL_TO NUM |
 		variable_type1 assign_expr |
 		variable_type2 assign_expr |
 		VAR array { get_symbol($1); } |		
@@ -184,12 +196,12 @@ variable:	VAR { get_symbol($1); } |
 		pointer VAR { get_symbol($2); } 
 		;
 
-// process var_name [] =
-variable_type2:	VAR array EQUAL_TO { get_symbol($1); }
-		;
-
 // process var_name =
 variable_type1:	VAR { get_symbol($1); }	 EQUAL_TO
+		;
+
+// process var_name [] =
+variable_type2:	VAR array EQUAL_TO { get_symbol($1); }
 		;
 
 // process assignment operation
@@ -352,6 +364,7 @@ any:
 	OPEN_SBR|
 	CLOSE_SBR|
 	OPEN_BR type CLOSE_BR |
+	OPEN_BR u_struct pointer CLOSE_BR |
 	STAR |
 	COMMA |
 	SEMI |
@@ -421,6 +434,7 @@ any_expr:
 	STAR |
 	COMMA |
 	TYPE |
+	U_STRUCT |
 	POINTER_ACCESS |
 	EQUAL_TO |
 	thread_creation |
@@ -440,7 +454,7 @@ any_expr:
 
 // process semaphore parameters
 sem_var :	ADDRESS	VAR { strcpy($$,$2); } |
-		VAR
+		VAR { strcpy($$,$1); }
 // |
 //		ADDRESS VAR { strcpy($$,$2); } OPEN_SBR VAR CLOSE_SBR
 	;
@@ -482,7 +496,34 @@ par_val2:	VAR {printf("\n Thread function parameter : %s",$1); strcpy(thread_tab
 
 par_val2_type1:	OPEN_BR type CLOSE_BR
 		;
+/*
+thread_lib:	THREAD_T thread_var_list |
+		THREAD_T thread_var_list
+		;
 
+thread_var_list:	thread_variable COMMA thread_var_list |
+			thread_variable
+			;
+
+thread_variable:	VAR |
+			//VAR { get_symbol($1); } EQUAL_TO NUM |
+			thread_variable_type1 assign_expr |
+			thread_variable_type2 assign_expr |
+			VAR array |		
+			array VAR EQUAL_TO assign_expr |
+			//array VAR { get_symbol($2); } EQUAL_TO block |
+			pointer VAR EQUAL_TO assign_expr |
+			pointer VAR  
+			;
+
+// process var_name =
+thread_variable_type1:	VAR EQUAL_TO
+			;
+
+// process var_name [] =
+thread_variable_type2:	VAR array EQUAL_TO
+			;
+*/
 %%
 
 extern FILE *yyin;
@@ -490,7 +531,7 @@ extern FILE *yyin;
 
 void get_symbol(char var[10])
 {
-	if (struct_flag)
+	if (struct_flag || thread_lib_flag)
 		return;
     if(flag == 0 || (flag == 1 && extern_flag == 1)) // Global variable entry
 	{
@@ -579,6 +620,8 @@ void display_global_variables()
 		for(i = 0; i < global_index; i++)
 			printf("\n\t %5d %15s %15s %15s %15d",gsym_tab[i].index,gsym_tab[i].access,gsym_tab[i].sym_name,gsym_tab[i].type,gsym_tab[i].line_number);
 	}
+	else
+		printf("\n\n No global variables entry found for given input.");
 
 }
 
@@ -592,6 +635,8 @@ void display_function()
 		for(i = 0; i < global_func_index; i++)
 			printf("\n\t %5d %15d %15s %15s %15d ",func_tab[i].index,func_tab[i].line_number,func_tab[i].func_name,func_tab[i].return_type,func_tab[i].no_of_parameter);
 	}
+	else
+		printf("\n\n No user-defined functions entry found for given input.");
 }
 
 void display_local_variables()
@@ -604,6 +649,8 @@ void display_local_variables()
 		for(i = 0;i < symbol_index; i++)
 			printf("\n\t %5d %15s %15s %15s %15d %15d",i,sym_tab[i].access,sym_tab[i].sym_name,sym_tab[i].type,sym_tab[i].func_index,sym_tab[i].line_number);
 	}
+	else
+		printf("\n\n No local variables entry found for given input.");
 }
 
 void display_func_paramtr()
@@ -616,6 +663,8 @@ void display_func_paramtr()
 		for(i = 0;i < par_index; i++)
 			printf("\n\t %5d %15s %15s %15d",i,par_tab[i].par_name,par_tab[i].type,par_tab[i].func_index);
 	}
+	else
+		printf("\n\n No parameters entry found for given input.");
 }
 
 void display_thread()
@@ -628,6 +677,8 @@ void display_thread()
 		for(i = 0;i < thread_index; i++)
 			printf("\n\t %5d %15s %15s %15d %15s %15s %15s",i,thread_tab[i].thread_obj,thread_tab[i].func_name,thread_tab[i].func_index,thread_tab[i].thread_attr,thread_tab[i].func_arg,thread_tab[i].parent_thread);
 	}
+	else
+		printf("\n\n No thread entry found for given input.");
 }
 
 void display_log()
@@ -640,6 +691,8 @@ void display_log()
 		for(i = 0;i < log_index; i++)
 			printf("\n\t %5d %15s %15s %15s %15d %15d %15d",i,func_tab[log_tab[i].func_index].func_name,log_tab[i].sym_name,log_tab[i].type,log_tab[i].line_number, log_tab[i].thread_func, log_tab[i].thread_index);
 	}
+	else
+		printf("\n\n No log entry found for given input.");
 }
 
 void display_semaphr()
@@ -652,6 +705,8 @@ void display_semaphr()
 		for(i = 0;i < semphr_index; i++)
 			printf("\n\t %5d %15s %15d %15d",i,sem_tab[i].sem_obj,sem_tab[i].sem_wait_point,sem_tab[i].sem_post_point);
 	}
+	else
+		printf("\n\n No semaphore entry found for given input.");
 }
 
 void assign_func_index()
@@ -695,6 +750,25 @@ void check_thread_entry()
 		}
 	}
 }
+
+
+void create_main_thread()
+{
+	int i;
+	
+	for (i = 0; i < global_func_index; i++)
+		if (strcmp(func_tab[i].func_name,"main") == 0)
+		{
+			thread_tab[thread_index].index = thread_index;
+			strcpy(thread_tab[thread_index].thread_obj,"main");
+			strcpy(thread_tab[thread_index].func_name,"main");
+			thread_tab[thread_index].func_index = i;
+			strcpy(thread_tab[thread_index].thread_attr,"NULL");
+			strcpy(thread_tab[thread_index].func_arg,"NULL");
+			strcpy(thread_tab[thread_index].parent_thread,"main");
+			thread_index++;
+		}
+}	
 
 // Function detects critical region
 void cs_check()
@@ -777,30 +851,88 @@ void display_critical_section()
 		printf("\n\n NO CRITICAL SECTION DETECTED");
 }
 
-int main()
+void display_help()
 {
-	yyin=fopen("emp_without_mutex.c","r");
-	yyparse();
+	printf("\n\n NAME \n\t CRITICAL SECTION DETECTION - An application to automatically detect critical section in multithreaded environment.");
+	printf("\n\n DISCRIPTION \n\t To design a GCC extension to identify the critical sections in multithreaded programs that lacks synchronization, which currently is not a feature in GCC (GNU Compiler Collection). The idea behind this technique is that compiler will automatically take care of the critical section by introducing Lock and Unlock function calls in a multithreaded program without involvement of the programmer.");
 
+	printf("\n\n COMMAND LINE OPTIONS \n\t\t -h \t --help prints the usage for tool executable and exits.");	
+	printf("\n\t\t -a \t prints all tables with critical section(if any).");
+	printf("\n\t\t -g \t prints global variable table ");
+	printf("\n\t\t -f \t prints function table containing information about user defined functions.");
+	printf("\n\t\t -L \t prints log information of variables used in funtions.");
+	printf("\n\t\t -l \t printf local variable table.");
+	printf("\n\t\t -t \t prints thread tablecontaining thread entries.");
+	printf("\n\t\t -c \t prints critical section(if any)");
+	printf("\n\t\t -p \t prints paarameter table containing all parameters defined in user defined functions.");
+	printf("\n\t\t -s \t prints semaphore table.");
+}
+
+int main(int argc, char *argv[])
+{
+	if (argc < 3)
+	{
+		printf("\n\n Error while processing command line!!!");
+		return(0);
+	}
+	yyin=fopen(argv[2],"r");
+	yyparse();
+	
+	
 	init_cbr_stack(&cbr_stack); // initialize curlybrace stack
 
-	
-	display_global_variables();
-	display_function();
-	display_local_variables();
-	display_func_paramtr();
-	
-	display_semaphr();
-	
+	create_main_thread();
 	assign_func_index();
-	display_thread();
 	check_thread_entry();
 	check_threads();
-	display_log();	
 	cs_check();
 	
+	if (strcmp(argv[1],"-a") == 0)
+	{
+		display_global_variables();
+		display_function();
+		display_local_variables();
+		display_func_paramtr();
 	
+		display_semaphr();
+	
+		
+		display_thread();
+		
+		display_log();	
+		
+		display_critical_section();
+	}
 
-	display_critical_section();
+	else if (strcmp(argv[1],"-g") == 0)	
+		display_global_variables();
+
+	else if (strcmp(argv[1],"-f") == 0)
+		display_function();
+	
+	else if (strcmp(argv[1],"-L") == 0)
+		display_log();
+
+	else if (strcmp(argv[1],"-l") == 0)
+		display_local_variables();
+		
+	else if (strcmp(argv[1],"-t") == 0)
+		display_thread();
+
+	else if (strcmp(argv[1],"-p") == 0)
+		display_func_paramtr();
+	
+	else if (strcmp(argv[1],"-c") == 0)
+		display_critical_section();
+	
+	else if (strcmp(argv[1],"-s") == 0)
+		display_semaphr();
+
+	else if (strcmp(argv[1],"-h") == 0)
+		display_help();
+
+	else
+		printf("\n\n Error in Input!!!");
+	
 	return 0;
 }
