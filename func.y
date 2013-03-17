@@ -8,7 +8,7 @@
 
 extern int line_counter; // input program line counter
 int flag = 0; // check for block entries
-int global_index = 0, func_index = 0, symbol_index = 0, par_index = 0, global_func_index = 0, par_func = 0, thread_index = 0, log_index=0, semphr_index = 0, cs_index = 0, thread_log_index = 0, hdr_index = 0; //table index
+int global_index = 0, func_index = 0, symbol_index = 0, par_index = 0, global_func_index = 0, par_func = 0, thread_index = 0, log_index=0, semphr_index = 0, cs_index = 0, thread_log_index = 0, hdr_index = 0, mutex_index = 0; //table index
 char data_type[20]; // c data type
 char access[20]; // access specifier (static,extern,typedef,etc.)
 int in_func_flag = 0,in_func_stmt_flag = 0, ignore_flag = 0, local_found = 0, cs_detect = 0, extern_flag = 0, struct_flag = 0, thread_lib_flag = 0;
@@ -21,6 +21,7 @@ func_def_log log_tab[100]; // log table object
 semaphore_def sem_tab[100]; // semaphore table object
 critical_section cs_tab[100]; // critical_section table object
 thread_log thread_log_tab[100]; // thread log table object
+mutex_def mutex_tab[100]; // mutex table object
 char *headers[50];
 int i;
 int par_counter = 0;
@@ -40,10 +41,10 @@ stack_brace cbr_stack; // Stack for handling equal curly braces
 }
 
 //define tokens which will help to match patterns
-%token MAIN OPEN_BR CLOSE_BR OPEN_CBR CLOSE_CBR OPEN_SBR CLOSE_SBR STAR COMMA SEMI EQUAL_TO PTHREAD_CREATE ADDRESS SEM_WAIT SEM_POST U_STRUCT POINTER_ACCESS THREAD_LIB
+%token MAIN OPEN_BR CLOSE_BR OPEN_CBR CLOSE_CBR OPEN_SBR CLOSE_SBR STAR COMMA SEMI EQUAL_TO PTHREAD_CREATE ADDRESS SEM_WAIT SEM_POST U_STRUCT POINTER_ACCESS THREAD_LIB MUTEX_LOCK MUTEX_UNLOCK
 %token <arg>  VAR NUM ACCESS TYPE PREPRO
 %token <any_arg> ANYTHING
-%type <arg> par_val1 par_val2 thread_creation sem_var
+%type <arg> par_val1 par_val2 thread_creation sem_var mutex_var
 %nonassoc high_priority
 %%
 
@@ -389,7 +390,18 @@ any:
 					for(i = 0; i < semphr_index; i++)
 						if (strcmp(sem_tab[i].sem_obj,$3) == 0)
 							sem_tab[i].sem_post_point = line_counter;
-				} CLOSE_BR SEMI
+				} CLOSE_BR SEMI  |
+	MUTEX_LOCK OPEN_BR mutex_var	{
+						mutex_tab[mutex_index].index = mutex_index;
+						mutex_tab[mutex_index].mutex_lock_point = line_counter;
+						strcpy(mutex_tab[mutex_index].mutex_obj,$3);
+						mutex_index++;
+					} CLOSE_BR SEMI |
+	MUTEX_UNLOCK OPEN_BR mutex_var	{
+						for (i = 0; i < mutex_index; i++)
+							if (strcmp(mutex_tab[i].mutex_obj,$3) == 0)
+								mutex_tab[i].mutex_unlock_point = line_counter;
+					} CLOSE_BR SEMI
 	;
 
 
@@ -456,15 +468,31 @@ any_expr:
 					for(i = 0; i < semphr_index; i++)
 						if (strcmp(sem_tab[i].sem_obj,$3) == 0)
 							sem_tab[i].sem_post_point = line_counter;
-				} CLOSE_BR SEMI
+				} CLOSE_BR SEMI |
+	MUTEX_LOCK OPEN_BR mutex_var	{
+						mutex_tab[mutex_index].index = mutex_index;
+						mutex_tab[mutex_index].mutex_lock_point = line_counter;
+						strcpy(mutex_tab[mutex_index].mutex_obj,$3);
+						mutex_index++;
+					} CLOSE_BR SEMI |
+	MUTEX_UNLOCK OPEN_BR mutex_var	{
+						for (i = 0; i < mutex_index; i++)
+							if (strcmp(mutex_tab[i].mutex_obj,$3) == 0)
+								mutex_tab[i].mutex_unlock_point = line_counter;
+					} CLOSE_BR SEMI
 	;
 
 // process semaphore parameters
-sem_var :	ADDRESS	VAR { strcpy($$,$2); } |
+sem_var:	ADDRESS	VAR { strcpy($$,$2); } |
 		VAR { strcpy($$,$1); }
 // |
 //		ADDRESS VAR { strcpy($$,$2); } OPEN_SBR VAR CLOSE_SBR
-	;
+		;
+
+// process mutex parameters
+mutex_var:	ADDRESS	VAR { strcpy($$,$2); } |
+		VAR { strcpy($$,$1); }
+		;
 
 // pattern match for pthread_create
 thread_creation : thread_creation_type1 COMMA par_val1 COMMA VAR { printf(" pointing to function %s",$5);
@@ -755,6 +783,20 @@ void display_semaphr()
 		printf("\n\n No semaphore entry found for given input.");
 }
 
+void display_mutex()
+{
+	int i;
+	if (mutex_index != 0)
+	{
+		printf("\n\n\t\t Mutex Table \n");
+		printf("\n\t %5s %15s %15s %15s","INDEX","MUTEX_OBJECT","LOCK_POINT","UNLOCK_POINT");
+		for(i = 0;i < mutex_index; i++)
+			printf("\n\t %5d %15s %15d %15d",i,mutex_tab[i].mutex_obj,mutex_tab[i].mutex_lock_point,mutex_tab[i].mutex_unlock_point);
+	}
+	else
+		printf("\n\n No mutex entry found for given input.");
+}
+
 void assign_func_index()
 {
 	int i, j;
@@ -819,7 +861,7 @@ void create_main_thread()
 // Function detects critical region
 void cs_check()
 {
-    int i, j, k;
+    int i, j, k, l;
 
 	for (i = 0; i < log_index; i++)
 	{
@@ -828,8 +870,16 @@ void cs_check()
 		for (k = 0; k < semphr_index; k++)
 		    if (sem_tab[k].sem_wait_point <= log_tab[i].line_number && sem_tab[k].sem_post_point >= log_tab[i].line_number)
 			    break;
+
+		for (l = 0; l < mutex_index; l++)
+			if (mutex_tab[l].mutex_lock_point <= log_tab[j].line_number && mutex_tab[l].mutex_unlock_point >= log_tab[j].line_number)
+			    break;
+
 		if (k != semphr_index)
-		    continue;
+		   	continue;
+
+		if (l != mutex_index)
+			continue;
 
 		if ( (log_tab[i].thread_func) && strcmp(log_tab[i].type,"Global") == 0)
 		{
@@ -841,8 +891,16 @@ void cs_check()
 					if (sem_tab[k].sem_wait_point <= log_tab[j].line_number && sem_tab[k].sem_post_point >= log_tab[j].line_number)
 					    break;
 
+				    for (l = 0; l < mutex_index; l++)
+					if (mutex_tab[l].mutex_lock_point <= log_tab[j].line_number && mutex_tab[l].mutex_unlock_point >= log_tab[j].line_number)
+					    break;
+
 				    if (k != semphr_index)
 					continue;
+	
+				    if (l != mutex_index)
+					continue;
+	
 				    cs_detect = 1;
 				    for (k = 0;k < cs_index; k++)
 					{
@@ -912,6 +970,7 @@ void display_help()
 	printf("\n\t\t -c \t prints critical section(if any)");
 	printf("\n\t\t -p \t prints paarameter table containing all parameters defined in user defined functions.");
 	printf("\n\t\t -s \t prints semaphore table.");
+	printf("\n\t\t -m \t prints mutex table.");
 }
 
 int main(int argc, char *argv[])
@@ -961,7 +1020,7 @@ int main(int argc, char *argv[])
 		display_func_paramtr();
 	
 		display_semaphr();
-	
+		display_mutex();
 		
 		display_thread();
 		
@@ -996,6 +1055,9 @@ int main(int argc, char *argv[])
 
 	else if (strcmp(argv[1],"-h") == 0)
 		display_help();
+
+	else if (strcmp(argv[1],"-m") == 0)
+		display_mutex();
 
 	else
 		printf("\n\n Error in Input!!!");
