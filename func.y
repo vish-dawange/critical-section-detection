@@ -8,23 +8,24 @@
 
 extern int line_counter; // input program line counter
 int flag = 0; // check for block entries
-int global_index = 0, func_index = 0, symbol_index = 0, par_index = 0, global_func_index = 0, par_func = 0, thread_index = 0, log_index=0, semphr_index = 0, cs_index = 0, thread_log_index = 0; //table index
+int global_index = 0, func_index = 0, symbol_index = 0, par_index = 0, global_func_index = 0, par_func = 0, thread_index = 0, log_index=0, semphr_index = 0, cs_index = 0, thread_log_index = 0, hdr_index = 0; //table index
 char data_type[20]; // c data type
 char access[20]; // access specifier (static,extern,typedef,etc.)
 int in_func_flag = 0,in_func_stmt_flag = 0, ignore_flag = 0, local_found = 0, cs_detect = 0, extern_flag = 0, struct_flag = 0, thread_lib_flag = 0;
-global_symbol gsym_tab[50]; // Global variable Entries
-func_def func_tab[50]; // user defined function entries
-symbol_table sym_tab[50]; // Symbol table Object
-parameter par_tab[50]; // parameter table object
-thread_info thread_tab[50]; // thread table object
-func_def_log log_tab[50]; // log table object
-semaphore_def sem_tab[50]; // semaphore table object
-critical_section cs_tab[50]; // critical_section table object
-thread_log thread_log_tab[50]; // thread log table object
+global_symbol gsym_tab[100]; // Global variable Entries
+func_def func_tab[100]; // user defined function entries
+symbol_table sym_tab[100]; // Symbol table Object
+parameter par_tab[100]; // parameter table object
+thread_info thread_tab[100]; // thread table object
+func_def_log log_tab[100]; // log table object
+semaphore_def sem_tab[100]; // semaphore table object
+critical_section cs_tab[100]; // critical_section table object
+thread_log thread_log_tab[100]; // thread log table object
+char *headers[50];
 int i;
 int par_counter = 0;
 void get_symbol(char []); // make entries into global and local variables
-
+void process_header(char []);
 int release_value = INFINITY; // index of curly brace which should be pop from stack
 stack_brace cbr_stack; // Stack for handling equal curly braces
 
@@ -34,13 +35,13 @@ stack_brace cbr_stack; // Stack for handling equal curly braces
 
 %union
 {
- char arg[20];
+ char arg[50];
  char any_arg;
 }
 
 //define tokens which will help to match patterns
 %token MAIN OPEN_BR CLOSE_BR OPEN_CBR CLOSE_CBR OPEN_SBR CLOSE_SBR STAR COMMA SEMI EQUAL_TO PTHREAD_CREATE ADDRESS SEM_WAIT SEM_POST U_STRUCT POINTER_ACCESS THREAD_LIB
-%token <arg>  VAR NUM ACCESS TYPE
+%token <arg>  VAR NUM ACCESS TYPE PREPRO
 %token <any_arg> ANYTHING
 %type <arg> par_val1 par_val2 thread_creation sem_var
 %nonassoc high_priority
@@ -52,7 +53,8 @@ start:	stmnt start {printf("\n corrrect program with multiple statements");}|
 	;
 
 // Process c statements
-stmnt:	user_defination |	
+stmnt:	PREPRO {printf("In Pre: %s",$1);  process_header($1); } |
+	user_defination |	
 	declarative_stmnt SEMI	{
 					// Check for local/global variable
 					if (flag == 1) printf("\n Local Variable");
@@ -64,6 +66,7 @@ stmnt:	user_defination |
 	func_stmnt //|
 	//thread_lib
 	;
+
 
 // Process user defined strutures like struct, enum, union
 user_defination:	user_def_type1 SEMI {struct_flag = 0;} |
@@ -79,7 +82,7 @@ user_def_type1 :	u_struct {struct_flag = 1;} block
 			;
 
 // Process : typedef struct/union/enum struct_name {/* declaration */}
-user_def_type2 :	ACCESS U_STRUCT {struct_flag = 1;} VAR block
+user_def_type2 :	ACCESS U_STRUCT VAR {struct_flag = 1;} block
 			;
 
 // Process : struct/union/enum struct_name
@@ -174,7 +177,8 @@ var_list:	variable COMMA var_list |
 utype_declaration:	u_struct var_list |
 			ACCESS u_struct {
 						strcpy(access,$1);
-						strcpy(data_type," ");
+						//strcpy(data_type," ");
+						//strcpy(data_type,$3);						
 						if ( strcmp(access, "extern") == 0)
 						{
 							extern_flag = 1;
@@ -189,6 +193,8 @@ variable:	VAR { get_symbol($1); } |
 		//VAR { get_symbol($1); } EQUAL_TO NUM |
 		variable_type1 assign_expr |
 		variable_type2 assign_expr |
+		variable_type1 |
+		variable_type2 |
 		VAR array { get_symbol($1); } |		
 		array VAR { get_symbol($2); } EQUAL_TO assign_expr |
 		//array VAR { get_symbol($2); } EQUAL_TO block |
@@ -219,7 +225,7 @@ func_stmnt:	func_prototype SEMI {par_index = par_index - par_counter; printf("\n
 
 				func_tab[global_func_index].index = global_func_index;
 				func_tab[global_func_index].line_number = line_counter;
-				func_tab[global_func_index].no_of_parameter = par_index + 1;
+				func_tab[global_func_index].no_of_parameter = par_counter;
 
 				global_func_index++;
 
@@ -233,11 +239,12 @@ func_prototype: type VAR {
 				strcpy(func_tab[global_func_index].return_type,data_type);
 				strcpy(func_tab[global_func_index].func_name,$2);
 				printf("\n Correct Function prototype");
+				par_counter = 0;
 		} bracket {printf("\n Correct Function prototype");}
 		;
 
 // process function parameters
-bracket:	OPEN_BR { par_counter = 0;} par CLOSE_BR |
+bracket:	OPEN_BR  par CLOSE_BR |
 		OPEN_BR CLOSE_BR
 		;
 
@@ -528,8 +535,46 @@ thread_variable_type2:	VAR array EQUAL_TO
 
 extern FILE *yyin;
 
+void process_header(char header_text[])
+{
+	char *hdr_file, substr[5] = "\"";
+	int len;
+	
+	if ((hdr_file = strstr(header_text,substr)))
+	{
+		len = strlen(hdr_file);
+		hdr_file++;
+		hdr_file[len-2] = '\0';
+		headers[hdr_index] =  (char *)malloc(50 * sizeof(char));
+		strcpy(headers[hdr_index],hdr_file);
+		printf("\n Header file name:%s\n ",headers[hdr_index]);
+		hdr_index++;
 
-void get_symbol(char var[10])
+	}
+}
+
+void extract_archieve(char *file_name)
+{
+	char *source_path = NULL;
+	int i,path_length;
+	
+	source_path = (char *)malloc(50 * sizeof(char));
+	path_length = strlen(file_name);
+	for (i = path_length; i >= 0; i--)
+	{
+		if (*(file_name + i) == '/')
+		{
+			*(file_name + i + 1) = '\0';
+			break;
+		}
+	}	
+
+	printf("\n\n Source path:%s",file_name);
+	
+}
+
+
+void get_symbol(char var[])
 {
 	if (struct_flag || thread_lib_flag)
 		return;
@@ -562,23 +607,14 @@ void get_symbol(char var[10])
 
 }
 
-void check_threads()
+void update_log_tab(int copy_log_index[], int copy_index, int thread_id)
 {
-	int i, j;
-	for (i = 0; i < thread_index; i++)
+	int i;
+	for (i = 0; i < copy_index; i++)
 	{
-		for(j = 0; j < thread_log_index; j++)
-		{
-			if (thread_log_tab[j].func_index == thread_tab[i].func_index)	
-				break;
-		}
-		if (j == thread_log_index)
-		{
-			thread_log_tab[thread_log_index].func_index = thread_tab[i].func_index;
-			thread_log_index++;
-		}		
-		else
-			find_log_entries(thread_tab[i].func_index, thread_tab[i].index );
+		log_tab[log_index] = log_tab[copy_log_index[i]];
+		log_tab[log_index].thread_index = thread_id;
+		log_index++;
 	}
 }
 
@@ -599,16 +635,26 @@ void find_log_entries(int func_index, int thread_id)
 	update_log_tab(copy_log_index,copy_index, thread_id);
 }
 
-void update_log_tab(int copy_log_index[], int copy_index, int thread_id)
+void check_threads()
 {
-	int i;
-	for (i = 0; i < copy_index; i++)
+	int i, j;
+	for (i = 0; i < thread_index; i++)
 	{
-		log_tab[log_index] = log_tab[copy_log_index[i]];
-		log_tab[log_index].thread_index = thread_id;
-		log_index++;
+		for(j = 0; j < thread_log_index; j++)
+		{
+			if (thread_log_tab[j].func_index == thread_tab[i].func_index)	
+				break;
+		}
+		if (j == thread_log_index)
+		{
+			thread_log_tab[thread_log_index].func_index = thread_tab[i].func_index;
+			thread_log_index++;
+		}		
+		else
+			find_log_entries(thread_tab[i].func_index, thread_tab[i].index );
 	}
 }
+
 
 void display_global_variables()
 {
@@ -870,22 +916,42 @@ void display_help()
 
 int main(int argc, char *argv[])
 {
+	char * hdr_source, *source_path, *hdr_element;
+	int i;
 	if (argc < 3)
 	{
 		printf("\n\n Error while processing command line!!!");
 		return(0);
 	}
-	yyin=fopen(argv[2],"r");
-	yyparse();
-	
+	source_path = hdr_source = hdr_element = (char *)malloc(50 * sizeof(char));
+	source_path = argv[2];
 	
 	init_cbr_stack(&cbr_stack); // initialize curlybrace stack
 
+	yyin=fopen(argv[2],"r");
+	yyparse();
+
+	extract_archieve(source_path);
+	
+	for (i = 0; i < hdr_index; i++)
+	{
+		
+		
+		strcpy(hdr_source, source_path);
+		hdr_element = headers[i];
+		strcat(hdr_source,hdr_element);
+		
+		yyin = fopen(hdr_source,"r");
+		yyparse();
+	}
+
+	
 	create_main_thread();
 	assign_func_index();
 	check_thread_entry();
 	check_threads();
 	cs_check();
+	system("clear");
 	
 	if (strcmp(argv[1],"-a") == 0)
 	{
