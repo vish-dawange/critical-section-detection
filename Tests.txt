@@ -1,7 +1,7 @@
 // TEST CASES //
 
 1. Handle global variables of c data_types	-	Done
-2. Handle global variables of userdefined DT	-	Done(Remaing : typedef)
+2. Handle global variables of userdefined DT	-	Done(Remaining : typedef)
 3. Handle User Defined function entries		-	Done
 4. Handle local varibales			- 	Done
 6. Handle Thread entries			-	Done
@@ -15,8 +15,20 @@
 14. Handle UDefined function without parameters	-	Done
 15. Handle shadowing of global variables        -       Done
 5. Handle pointer variables			-	Not Done*
-16. Handle semaphores and pthread libraries	-  	Not Done*
-17. Function prototype Declaration		-	Partial Done
+16. Handle semaphores and pthread libraries	-  	Done*(Remaining:Join)
+17. Function prototype Declaration		-	Done
 18. Handle (multiline) macros			-	Not Done
 19. Same function with different thread id	-	Done
-20. Structure definition with multiple variables-	Not Done
+20. Structure definition with multiple variables-	Done
+21. Processing the headers			-	Done*
+
+
+Errors:
+1. While processing typedef for structure 
+   definition.					-	Done
+2. Assign any string value (i.e. "") to any 
+   variables i.e. equal to nothing.		-	Done	
+3. Global declaration with commas		- 	Not Done
+4. Wrong Line numbers				-	Done*
+
+
