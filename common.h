@@ -118,6 +118,17 @@ typedef struct critical_section
     int critical_location;
 }critical_section;
 
+/* UD_func_cs structure will contain information about critical section affected
+   by user-defined functions which are not thread functions. */
+typedef struct UD_func_CS
+{
+    int index;
+    int func_index;
+    char critical_obj[SIZE_VAR];
+    int parent_thread_index;
+    int critical_location;
+}UD_func_cs;
+
 /* thread_log structure contains information about thread functions which has
    function index defined for praticular thread. */
 typedef struct thread_log
@@ -176,7 +187,7 @@ int par_counter = 0;
 int release_value = INFINITY;
 
 /* Table Index*/
-int global_index = 0, func_index = 0, symbol_index = 0, par_index = 0, global_func_index = 0, par_func = 0, thread_index = 0, log_index=0, semphr_index = 0, cs_index = 0, thread_log_index = 0, hdr_index = 0, mutex_index = 0, call_trace_index = 0, trace_tree_index = 0;
+int global_index = 0, func_index = 0, symbol_index = 0, par_index = 0, global_func_index = 0, par_func = 0, thread_index = 0, log_index=0, semphr_index = 0, cs_index = 0, thread_log_index = 0, hdr_index = 0, mutex_index = 0, call_trace_index = 0, trace_tree_index = 0, func_cs_index = 0;
 
 /* Structure object declaration */
 global_symbol gsym_tab[SIZE_TABLE]; // Global variable Entries
@@ -192,3 +203,4 @@ mutex_def mutex_tab[SIZE_TABLE]; // mutex table object
 critical_section_unique cs_tab1[SIZE_TABLE]; //critical section table object
 func_call_trace call_trace[SIZE_TABLE]; // function call trace object
 call_trace_tree *stack_trace[SIZE_TABLE]; //
+UD_func_cs func_cs_tab[SIZE_TABLE]; //
