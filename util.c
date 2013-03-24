@@ -9,7 +9,6 @@
  *      information stored in those structures.                                         *
  *****************************************************************************************/
 
-
 #include<stdio.h>
 #include<string.h>
 #include<stdlib.h>
@@ -20,6 +19,8 @@ stack_brace cbr_stack; // Stack for handling equal curly braces
 
 func_call_trace temp_call_trace[1024];
 int temp_index = 0;
+int visited[1024];
+int parent_thread_index = -1;
 
 void get_parameter(char var_name[])
 {
@@ -122,6 +123,14 @@ int generate_trace_tree()
 				    if (l != mutex_index)
 					continue;
 
+				    for (k = 0; k < thread_index; k++)
+					{
+					    if (thread_tab[k].func_index == call_trace[j].func_index)
+						break;
+					}
+				    if (k != thread_index)
+					continue;
+
 				    node = (call_trace_tree *)malloc(sizeof(call_trace_tree));
 				    node->index = call_trace[j].func_index;
 				    node->func_call_obj = call_trace[j];
@@ -141,6 +150,52 @@ int generate_trace_tree()
 	}
     return 0;
 }
+
+void init_visited()
+{
+    int i;
+
+    for (i =0; i < global_func_index; i++)
+	{
+	    visited[i] = 0;
+	}
+}
+
+
+void DFS(call_trace_tree *G[],int i,int visited[])
+{
+    // VARIABLE DECLARATION
+    call_trace_tree *p;
+    int j;
+    // MAKE STARTING NODE VISITED
+    // printf("%s\t",G[i]->vname);
+    p=G[i];
+    visited[i]=1;
+    while(p!=NULL)
+	{
+	    // MAKE NODES VISITED ACCORDING TO THEIR ADJACENCY
+	    i=p->index;
+	    if(!visited[i])
+		{
+		    for (j = 0; j < log_index; j++)
+			{
+			    if ((strcmp(log_tab[j].type,"Global")) == 0 && log_tab[j].func_index == i)
+				{
+				    func_cs_tab[func_cs_index].index = func_cs_index;
+				    func_cs_tab[func_cs_index].parent_thread_index = parent_thread_index;
+				    strcpy(func_cs_tab[func_cs_index].critical_obj, log_tab[j].sym_name);
+				    func_cs_tab[func_cs_index].critical_location = log_tab[j].line_number;
+				    func_cs_tab[func_cs_index].func_index = i;
+				    func_cs_index++;
+				}
+			}
+		    DFS(G,i,visited);
+		}
+
+	    p=p->next;
+	}
+}
+
 
 
 void process_func_call()
@@ -179,8 +234,25 @@ void process_func_call()
 			}
 		    printf("\n");
 		}
+	    for (i = 0; i < global_func_index; i++)
+		{
+		    for (j = 0; j < thread_index; j++)
+			{
+			    if (i == thread_tab[j].func_index)
+				{
+				    parent_thread_index = i;
+				    DFS(stack_trace, i, visited);
+				    init_visited();
+				}
+			}
+
+		}
+
 	}
+
 }
+
+
 
 void process_header(char header_text[])
 {
@@ -404,7 +476,7 @@ void cs_check()
 
     for (i = 0; i < log_index; i++)
 	{
-	    //	printf("but now here..");//shala
+	    //	printf("but now here..");
 	    cs_detect = 0;
 	    if (!log_tab[i].thread_func)
 		continue;
@@ -425,18 +497,17 @@ void cs_check()
 		}
 		//detect_join = check_synchro_join(i);
 
-		printf("\nthred_index %d and k %d",thread_index,k);  ///shala....
+		printf("\nthred_index %d and k %d",thread_index,k);
 		if (k == thread_index)
 		cs_detect = 1;
 		}
 
 		if (cs_detect)
 		{
-		printf("I was here...");//shala
+		printf("I was here...");
 		continue;
 		}
 
-		printf("oooopssssss...");//shala
 	    */cs_detect = 0;
 	    // loop used to handle proper locks
 	    for (k = 0; k < semphr_index; k++)
@@ -745,6 +816,24 @@ void create_cs_log()
 	} //ELSE
 }
 
+void print_func_cs(int cs_index)
+{
+    int i;
+
+    for (i = 0; i < func_cs_index; i++)
+	{
+	    if (func_cs_tab[i].parent_thread_index == cs_index)
+		{
+		    printf("\n\n\t\t\t = = = SUSPECTED CRITICAL SECTION AFFECTED BY THREAD : %s= = = \n",thread_tab[cs_tab1[cs_index].thread_func_index].func_name);
+		    printf("\t_________________________________________________________________________\n");
+		    //	printf("\n\t %5s %15s %15s %15s","INDEX","CRITICAL_OBJECT","THREAD_FUNC_INDEX","CRITICAL_LOCATION");
+		   printf("\n\t\t INDEX: %20d \n\t\t Shared Object: %16s \n\t\t Parent Thread Index:  %3d \n\t\t  Function Name: %26s \n\t\t Critical Location:  %8d \n\n\t\t________________________________________________\n",i,func_cs_tab[i].critical_obj,func_cs_tab[i].parent_thread_index,func_tab[func_cs_tab[i].func_index].func_name,func_cs_tab[i].critical_location);
+		    printf("\t_________________________________________________________________________\n");
+		}
+	}
+}
+
+
 /*ADDING LOCKS AND UNLOCKS*/
 void add_lock_unlock(char *source_file_name,int preprocess_counter )
 {
@@ -790,6 +879,7 @@ void add_lock_unlock(char *source_file_name,int preprocess_counter )
 			printf("\n\t Ending location for critical section : %d",cs_tab1[cs_tab_count].max_critical_location);
 			printf("\n\t________________________________________________________________________________\n");
 			getchar();
+			print_func_cs(cs_tab_count);
 			printf("\n\t\t Printing actual critical section block");
 			printf("\n\t--------------------------------------------------------------------------------\n");
 			printf("\n\t Line Number \t Statement ");
