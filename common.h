@@ -147,6 +147,8 @@ typedef struct critical_section_unique
     int max_critical_location;
 }critical_section_unique;
 
+/* func_call_trace structure contains information about function calls
+   made by parent threads or any other function. */
 typedef struct func_call_trace
 {
     int index;
@@ -156,6 +158,7 @@ typedef struct func_call_trace
     int line_number;
 }func_call_trace;
 
+/* Link list structure is like function call trace tree */
 typedef struct call_trace_tree
 {
     int index;
@@ -168,8 +171,8 @@ extern int pre_counter;
 int display_lock = 0;
 int flag = 0; // check for block entries
 
-char data_type[SIZE_VAR]; // c data type
-char access[SIZE_VAR]; // access specifier (static,extern,typedef,etc.)
+char data_type[SIZE_VAR]; // C data type
+char access[SIZE_VAR]; // Access specifier (static,extern,typedef,etc.)
 
 /* flag declarations */
 int in_func_flag = 0,in_func_stmt_flag = 0, ignore_flag = 0, local_found = 0, cs_detect = 0, extern_flag = 0, struct_flag = 0, thread_lib_flag = 0;
@@ -202,5 +205,5 @@ thread_log thread_log_tab[SIZE_TABLE]; // thread log table object
 mutex_def mutex_tab[SIZE_TABLE]; // mutex table object
 critical_section_unique cs_tab1[SIZE_TABLE]; //critical section table object
 func_call_trace call_trace[SIZE_TABLE]; // function call trace object
-call_trace_tree *stack_trace[SIZE_TABLE]; //
-UD_func_cs func_cs_tab[SIZE_TABLE]; //
+call_trace_tree *stack_trace[SIZE_TABLE]; // Link list will contain function calls
+UD_func_cs func_cs_tab[SIZE_TABLE]; // structure object for critical section affected by function calls
